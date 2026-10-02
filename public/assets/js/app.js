@@ -319,3 +319,24 @@
   const dm = $('#dmChat'); if (dm) dm.scrollTop = dm.scrollHeight;
   const chat = $('.chat'); if (chat && !chat.classList.contains('dm')) chat.scrollTop = 0;
 })();
+
+/* ---------- landing: scroll reveal, count-up, live reaction counters ---------- */
+(() => {
+  const els = document.querySelectorAll('.reveal');
+  if (els.length && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+    els.forEach(el => io.observe(el));
+  } else els.forEach(el => el.classList.add('in'));
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const end = +el.dataset.count; if (!end) return;
+    const t0 = performance.now(), dur = 1400;
+    const step = t => { const k = Math.min(1, (t - t0) / dur); el.textContent = Math.round(end * (1 - Math.pow(1 - k, 3))).toLocaleString(); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+  const ticks = [...document.querySelectorAll('.stage .tick')];
+  if (ticks.length && !matchMedia('(prefers-reduced-motion: reduce)').matches) setInterval(() => {
+    const el = ticks[Math.floor(Math.random() * ticks.length)];
+    el.textContent = (+el.textContent + 1 + Math.floor(Math.random() * 3));
+    el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 260);
+  }, 700);
+})();
