@@ -3,14 +3,10 @@
   RewriteEngine On
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^ index.php [L,QSA]
+  RewriteRule ^ index.php [L]
 </IfModule>
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
-# Never execute scripts that were uploaded
-<Directory "uploads">
-  php_flag engine off
-</Directory>
