@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "MANBAR: start dev server (http://localhost:8000)",
+      "type": "shell",
+      "command": "php -S localhost:8000 -t public public/index.php",
+      "isBackground": true,
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "MANBAR: install database + demo data (MySQL)",
+      "type": "shell",
+      "command": "php database/install.php --fresh --demo",
+      "problemMatcher": []
+    },
+    {
+      "label": "MANBAR: regenerate database/manbar.sql",
+      "type": "shell",
+      "command": "php database/build_sql.php",
+      "problemMatcher": []
+    },
+    {
+      "label": "MANBAR: regenerate report diagrams",
+      "type": "shell",
+      "command": "python3 docs/make_figures.py",
+      "problemMatcher": []
+    }
+  ]
+}

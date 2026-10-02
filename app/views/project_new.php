@@ -1,0 +1,11 @@
+<?php $title = 'Start a project'; ?>
+<div class="pagehead"><div><h1>Start a project</h1><p>Describe what you’re building and which skills you need. Students can then apply to join.</p></div></div>
+<form method="post" action="<?= e(url('projects/new')) ?>" class="card" style="max-width:780px">
+  <?= csrf_field() ?>
+  <?php if ($from): ?><input type="hidden" name="from_post" value="<?= (int) $from['id'] ?>"><div class="chip mb">Turning your idea into a project: “<?= e(excerpt($from['title'], 50)) ?>”</div><?php endif ?>
+  <div class="field"><label class="f">Project title</label><input class="input" name="title" data-draft="title" maxlength="200" required value="<?= e($from['title'] ?? '') ?>" placeholder="e.g. Campus study-buddy matcher"></div>
+  <div class="field"><label class="f">What are you building?</label><textarea class="textarea" name="description" data-draft="body" rows="6" required placeholder="The problem, the plan, and what you want to achieve…"><?= e($from['body'] ?? '') ?></textarea></div>
+  <div class="field"><label class="f">Skills you’re looking for</label><div class="tags-in" data-tags="needed_skills" data-initial="<?= e($from['tags'] ?? '') ?>" data-ph="UI design, Python, video editing…"></div></div>
+  <div class="field" style="max-width:240px"><label class="f">Team size (max members)</label><input class="input" type="number" name="max_members" min="2" max="30" value="5"></div>
+  <button class="btn btn-primary btn-lg" type="submit"><?= icon('rocket', 18) ?> Create project</button>
+</form>

@@ -1,0 +1,106 @@
+<?php
+/** [method, pattern, handler]. {name} segments are passed to the handler (digits become ints). */
+return [
+    // public / auth
+    ['GET',  '/',                         'page_landing'],
+    ['GET',  '/login',                    'page_login'],
+    ['POST', '/auth/google',              'auth_google'],
+    ['POST', '/auth/dev',                 'auth_dev'],
+    ['POST', '/logout',                   'auth_logout'],
+    ['GET',  '/onboarding',               'page_onboarding'],
+    ['POST', '/onboarding',               'onboarding_save'],
+
+    // feed & posts
+    ['GET',  '/feed',                     'page_feed'],
+    ['GET',  '/saved',                    'page_saved'],
+    ['GET',  '/search',                   'page_search'],
+    ['POST', '/post/create',              'post_create'],
+    ['GET',  '/post/{id}',                'page_post'],
+    ['POST', '/post/{id}/update',         'post_update'],
+    ['POST', '/post/{id}/delete',         'post_delete'],
+    ['POST', '/post/{id}/pin',            'post_pin'],
+    ['POST', '/api/react',                'api_react'],
+    ['POST', '/api/comment',              'api_comment'],
+    ['POST', '/api/comment/delete',       'api_comment_delete'],
+    ['POST', '/api/bookmark',             'api_bookmark'],
+    ['POST', '/api/share',                'api_share'],
+    ['POST', '/api/report',               'api_report'],
+    ['POST', '/api/follow',               'api_follow'],
+    ['GET',  '/api/counts',               'api_counts'],
+    ['POST', '/api/ai/assist',            'api_ai_assist'],
+    ['POST', '/api/ai/guide',             'api_ai_guide'],
+
+    // profiles & people
+    ['GET',  '/me',                       'page_me'],
+    ['GET',  '/profile/edit',             'page_profile_edit'],
+    ['POST', '/profile/edit',             'profile_save'],
+    ['GET',  '/profile/{id}',             'page_profile'],
+    ['GET',  '/people',                   'page_people'],
+
+    // projects
+    ['GET',  '/projects',                 'page_projects'],
+    ['GET',  '/projects/new',             'page_project_new'],
+    ['POST', '/projects/new',             'project_create'],
+    ['GET',  '/projects/{id}',            'page_project'],
+    ['POST', '/projects/{id}/apply',      'project_apply'],
+    ['POST', '/projects/{id}/application/{appId}', 'project_decide'],
+    ['POST', '/projects/{id}/leave',      'project_leave'],
+    ['POST', '/projects/{id}/tasks',      'project_task_add'],
+    ['POST', '/projects/{id}/tasks/{tid}','project_task_move'],
+    ['POST', '/projects/{id}/message',    'project_message'],
+    ['POST', '/projects/{id}/status',     'project_status'],
+    ['POST', '/projects/{id}/delete',     'project_delete'],
+
+    // marketplace
+    ['GET',  '/marketplace',              'page_marketplace'],
+    ['GET',  '/marketplace/new',          'page_service_new'],
+    ['POST', '/marketplace/new',          'service_create'],
+    ['GET',  '/marketplace/orders',       'page_orders'],
+    ['GET',  '/marketplace/{id}',         'page_service'],
+    ['POST', '/marketplace/{id}/request', 'service_request'],
+    ['POST', '/marketplace/{id}/request/{rid}', 'service_request_decide'],
+    ['POST', '/marketplace/{id}/review',  'service_review'],
+    ['POST', '/marketplace/{id}/toggle',  'service_toggle'],
+
+    // learning center
+    ['GET',  '/learn',                    'page_learn'],
+    ['GET',  '/learn/new',                'page_course_new'],
+    ['POST', '/learn/new',                'course_create'],
+    ['GET',  '/learn/{id}',               'page_course'],
+    ['GET',  '/learn/{id}/lesson/{lessonId}',  'page_course'],
+    ['POST', '/learn/{id}/enroll',        'course_enroll'],
+    ['POST', '/learn/{id}/lesson/{lid}/complete', 'lesson_complete'],
+    ['POST', '/learn/{id}/lessons',       'lesson_add'],
+    ['POST', '/learn/{id}/delete',        'course_delete'],
+
+    // mentorship
+    ['GET',  '/mentors',                  'page_mentors'],
+    ['GET',  '/mentors/{id}',             'page_mentor'],
+    ['POST', '/mentors/{id}/request',     'mentor_request'],
+    ['GET',  '/mentorship',               'page_mentorship'],
+    ['POST', '/mentorship/{rid}',         'mentor_decide'],
+
+    // social
+    ['GET',  '/notifications',            'page_notifications'],
+    ['GET',  '/messages',                 'page_messages'],
+    ['GET',  '/messages/{with}',          'page_messages'],
+    ['POST', '/messages/{to}',            'message_send'],
+    ['GET',  '/achievements',             'page_achievements'],
+
+    // admin
+    ['GET',  '/admin',                    'page_admin'],
+    ['GET',  '/admin/users',              'page_admin_users'],
+    ['POST', '/admin/users/{id}',         'admin_user_action'],
+    ['GET',  '/admin/roster',             'page_admin_roster'],
+    ['POST', '/admin/roster/add',         'admin_roster_add'],
+    ['POST', '/admin/roster/import',      'admin_roster_import'],
+    ['POST', '/admin/roster/{id}/delete', 'admin_roster_delete'],
+    ['GET',  '/admin/moderation',         'page_admin_moderation'],
+    ['POST', '/admin/moderate',           'admin_moderate'],
+    ['GET',  '/admin/content',            'page_admin_content'],
+    ['POST', '/admin/courses/{id}/toggle','admin_course_toggle'],
+    ['GET',  '/admin/universities',       'page_admin_universities'],
+    ['POST', '/admin/universities',       'admin_university_save'],
+    ['GET',  '/admin/settings',           'page_admin_settings'],
+    ['POST', '/admin/settings',           'admin_settings_save'],
+];
