@@ -1,0 +1,16 @@
+# local config & secrets
+config/config.local.php
+.env
+# runtime data
+storage/*
+!storage/.gitkeep
+public/uploads/*
+!public/uploads/.gitkeep
+# editors / OS
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+node_modules/

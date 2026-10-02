@@ -1,0 +1,7 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    { "name": "Listen for Xdebug (XAMPP)", "type": "php", "request": "launch", "port": 9003 },
+    { "name": "Launch built-in server", "type": "php", "request": "launch", "runtimeArgs": ["-S", "localhost:8000", "-t", "public", "public/index.php"], "port": 9003, "serverReadyAction": { "pattern": "Development Server \\(http://localhost:([0-9]+)\\) started", "uriFormat": "http://localhost:%s", "action": "openExternally" } }
+  ]
+}
