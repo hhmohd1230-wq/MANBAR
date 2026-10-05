@@ -82,7 +82,9 @@ The assistant works without any key. To let Claude do the correcting and routing
 ```bash
 git add -A && git commit -m "..." && git push
 ```
-On a server: PHP 8.1+, MySQL/MariaDB, Apache (document root = `public/`, `mod_rewrite` on) or Nginx (`try_files $uri /index.php?$query_string;`). Then `php database/install.php`, set `MANBAR_ENV=production`, `dev_login=false`, DB credentials and the Google client ID in `config/config.local.php` / environment, and serve over **HTTPS**.
+On a server: PHP 8.1+, MySQL/MariaDB, Apache (`mod_rewrite` on) or Nginx. Prefer setting the document root to `public/`. For shared hosting with a fixed `public_html` root, deploy the whole repository into `public_html`; the root `index.php` and `.htaccess` safely expose only the public assets and front controller.
+
+Then import `database/manbar.sql` (or run `php database/install.php`), create a server-only `config/config.local.php`, set `env` to `production`, keep `dev_login` and `show_codes_on_screen` false, add the production database/mail/Google settings, and serve over **HTTPS**. Make `public/uploads/` and `storage/` writable by PHP. Never commit `config/config.local.php`.
 
 ## Project layout
 
