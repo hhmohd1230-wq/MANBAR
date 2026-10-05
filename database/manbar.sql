@@ -46,8 +46,15 @@ CREATE TABLE users (
   website VARCHAR(255) NULL,
   linkedin VARCHAR(255) NULL,
   github VARCHAR(255) NULL,
+  discord VARCHAR(255) NULL,
+  whatsapp VARCHAR(32) NULL,
+  phone VARCHAR(32) NULL,
+  cover_image VARCHAR(255) NULL,
+  name_style VARCHAR(20) NOT NULL DEFAULT 'classic',
+  profile_effect VARCHAR(20) NOT NULL DEFAULT 'none',
   points INT NOT NULL DEFAULT 0,
   profile_complete INT NOT NULL DEFAULT 0,
+  product_tour_completed INT NOT NULL DEFAULT 0,
   last_login DATETIME NULL,
   created_at DATETIME NOT NULL,
   FOREIGN KEY (university_id) REFERENCES universities(id)
@@ -152,6 +159,8 @@ CREATE TABLE projects (
   status VARCHAR(20) NOT NULL DEFAULT 'open',       
   max_members INT NOT NULL DEFAULT 5,
   outcome TEXT NULL,
+  cover_image VARCHAR(255) NULL,
+  cover_theme INT NOT NULL DEFAULT 0,
   hidden INT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL,
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
@@ -348,6 +357,10 @@ CREATE TABLE messages (
   sender_id INT NOT NULL,
   receiver_id INT NOT NULL,
   body TEXT NOT NULL,
+  attachment_path VARCHAR(500) NULL,
+  attachment_name VARCHAR(255) NULL,
+  attachment_type VARCHAR(100) NULL,
+  attachment_size INT NULL,
   is_read INT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL,
   FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -355,6 +368,15 @@ CREATE TABLE messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_messages_pair ON messages(sender_id, receiver_id);
+
+CREATE TABLE message_typing (
+  user_id INT NOT NULL,
+  receiver_id INT NOT NULL,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY (user_id, receiver_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE settings (
   k VARCHAR(60) NOT NULL PRIMARY KEY,
@@ -369,14 +391,14 @@ CREATE TABLE audit_log (
   created_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO universities (name, short_name, domain, active, created_at) VALUES ('Al Ain University','AAU','aau.ac.ae',1,'2026-10-02 16:08:51');
-INSERT INTO universities (name, short_name, domain, active, created_at) VALUES ('Abu Dhabi University','ADU','adu.ac.ae',0,'2026-10-02 16:08:51');
-INSERT INTO universities (name, short_name, domain, active, created_at) VALUES ('United Arab Emirates University','UAEU','uaeu.ac.ae',0,'2026-10-02 16:08:51');
-INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202020280','Yaman Mhd Laith AlNasri','Software Engineering','College of Engineering',4,'2026-10-02 16:08:51');
-INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202211424','Tamim Ahmed Alzein','Software Engineering','College of Engineering',4,'2026-10-02 16:08:51');
-INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202210908','Ghaith Shujaa Alsalim','Software Engineering','College of Engineering',4,'2026-10-02 16:08:51');
-INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202212000','Muhammad Toufeeq','Software Engineering','College of Engineering',4,'2026-10-02 16:08:51');
-INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202210821','Rami Loay Albaini','Software Engineering','College of Engineering',4,'2026-10-02 16:08:51');
+INSERT INTO universities (name, short_name, domain, active, created_at) VALUES ('Al Ain University','AAU','aau.ac.ae',1,'2026-10-04 03:46:31');
+INSERT INTO universities (name, short_name, domain, active, created_at) VALUES ('Abu Dhabi University','ADU','adu.ac.ae',0,'2026-10-04 03:46:31');
+INSERT INTO universities (name, short_name, domain, active, created_at) VALUES ('United Arab Emirates University','UAEU','uaeu.ac.ae',0,'2026-10-04 03:46:31');
+INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202020280','Yaman Mhd Laith AlNasri','Software Engineering','College of Engineering',4,'2026-10-04 03:46:31');
+INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202211424','Tamim Ahmed Alzein','Software Engineering','College of Engineering',4,'2026-10-04 03:46:31');
+INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202210908','Ghaith Shujaa Alsalim','Software Engineering','College of Engineering',4,'2026-10-04 03:46:31');
+INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202212000','Muhammad Toufeeq','Software Engineering','College of Engineering',4,'2026-10-04 03:46:31');
+INSERT INTO roster (university_id, student_id, full_name, major, faculty, year_level, created_at) VALUES (1,'202210821','Rami Loay Albaini','Software Engineering','College of Engineering',4,'2026-10-04 03:46:31');
 INSERT INTO badges (code, name, description, icon, tone) VALUES ('profile_pro','Profile Pro','Completed your profile','user','green');
 INSERT INTO badges (code, name, description, icon, tone) VALUES ('first_post','First Voice','Published your first post','chat','blue');
 INSERT INTO badges (code, name, description, icon, tone) VALUES ('idea_machine','Idea Machine','Shared 5 ideas','bulb','amber');

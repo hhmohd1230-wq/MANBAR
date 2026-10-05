@@ -3,15 +3,33 @@ $title = $p['full_name'];
 $own = (int) $p['id'] === (int) $u['id'];
 $tabs = ['posts' => 'Posts', 'projects' => 'Projects', 'services' => 'Services', 'badges' => 'Badges'];
 if ($courses) $tabs['courses'] = 'Courses';
+$nameStyle = in_array($p['name_style'] ?? 'classic', PROFILE_NAME_STYLES, true) ? $p['name_style'] : 'classic';
+$profileEffect = in_array($p['profile_effect'] ?? 'none', PROFILE_EFFECTS, true) ? $p['profile_effect'] : 'none';
+$hasCover = !empty($p['cover_image']);
+$coverStyle = $hasCover ? profile_cover_style($p) : theme_css((int) $p['theme']);
+$whatsappDigits = preg_replace('/\D/', '', (string) ($p['whatsapp'] ?? ''));
+$contacts = array_filter([
+  ['website', 'Website', 'globe', $p['website'] ?? null, $p['website'] ? (parse_url($p['website'], PHP_URL_HOST) ?: 'Open website') : null],
+  ['linkedin', 'LinkedIn', 'linkedin', $p['linkedin'] ?? null, $p['linkedin'] ? (parse_url($p['linkedin'], PHP_URL_HOST) ?: 'Professional profile') : null],
+  ['github', 'GitHub', 'github', $p['github'] ?? null, $p['github'] ? (parse_url($p['github'], PHP_URL_HOST) ?: 'Code and projects') : null],
+  ['discord', 'Discord', 'discord', $p['discord'] ?? null, $p['discord'] ? (parse_url($p['discord'], PHP_URL_HOST) ?: 'Discord profile') : null],
+  ['whatsapp', 'WhatsApp', 'whatsapp', $whatsappDigits ? 'https://wa.me/' . $whatsappDigits : null, $p['whatsapp'] ?? null],
+  ['phone', 'Phone', 'phone', !empty($p['phone']) ? 'tel:' . preg_replace('/[^0-9+]/', '', $p['phone']) : null, $p['phone'] ?? null],
+], fn($contact) => !empty($contact[3]));
 ?>
-<div class="page-grid">
+<div class="page-grid profile-page">
   <div class="stack gap-l">
-    <div class="card profile-card">
-      <div class="cover" style="<?= theme_css((int) $p['theme']) ?>"></div>
+    <div class="card profile-card profile-effect-<?= e($profileEffect) ?>">
+      <div class="cover profile-cover <?= $hasCover ? 'has-image' : '' ?>" style="<?= e($coverStyle) ?>">
+        <div class="profile-cover-shine" aria-hidden="true"></div>
+      </div>
       <div class="profile-top">
-        <?= avatar($p, 112) ?>
+        <div class="profile-avatar-stage" aria-label="<?= e($p['full_name']) ?> profile photo">
+          <span class="profile-vfx profile-vfx-a" aria-hidden="true"></span><span class="profile-vfx profile-vfx-b" aria-hidden="true"></span>
+          <?= avatar($p, 112) ?>
+        </div>
         <div class="info">
-          <h1><?= e($p['full_name']) ?> <?= verified_badge($p) ?></h1>
+          <h1 class="profile-name profile-name-<?= e($nameStyle) ?>"><?= e($p['full_name']) ?> <?= verified_badge($p) ?></h1>
           <div class="muted"><?= e($p['headline'] ?: ($p['role'] === 'student' ? 'Student at ' . $p['uni_name'] : role_label($p['role']) . ' at ' . $p['uni_name'])) ?></div>
           <div class="row wrap gap-s" style="margin-top:8px">
             <span class="role-pill <?= e($p['role']) ?>"><?= e(role_label($p['role'])) ?></span>
@@ -31,14 +49,16 @@ if ($courses) $tabs['courses'] = 'Courses';
         </div>
       </div>
       <div class="stats">
-        <div class="stat"><b data-followers><?= (int) $p['followers'] ?></b><span>Followers</span></div>
-        <div class="stat"><b><?= (int) $p['following'] ?></b><span>Following</span></div>
+        <button class="stat stat-button" type="button" data-people-dialog="followersDialog"><b data-followers><?= (int) $p['followers'] ?></b><span>Followers</span></button>
+        <button class="stat stat-button" type="button" data-people-dialog="followingDialog"><b><?= (int) $p['following'] ?></b><span>Following</span></button>
         <div class="stat"><b><?= count($posts) ?></b><span>Posts</span></div>
         <div class="stat"><b><?= count($projects) ?></b><span>Projects</span></div>
         <div class="stat"><b><?= (int) $p['points'] ?></b><span>Points</span></div>
         <div class="stat"><b><?= count($badges) ?></b><span>Badges</span></div>
       </div>
     </div>
+
+    <?php partial('profile_about', ['p' => $p, 'contacts' => $contacts, 'own' => $own, 'placement' => 'profile-about-mobile']) ?>
 
     <div class="tabs"><?php foreach ($tabs as $k => $l): ?><a class="<?= $tab === $k ? 'on' : '' ?>" href="<?= e(url('profile/' . $p['id'] . '?tab=' . $k)) ?>"><?= $l ?></a><?php endforeach ?></div>
 
@@ -66,13 +86,7 @@ if ($courses) $tabs['courses'] = 'Courses';
   </div>
 
   <aside class="aside">
-    <div class="card">
-      <div class="card-title"><h3>About</h3></div>
-      <p class="muted" style="margin:0"><?= $p['bio'] ? nl2br(e($p['bio'])) : 'No bio yet.' ?></p>
-      <?php if ($p['website'] || $p['linkedin'] || $p['github']): ?><hr class="divider"><div class="row wrap">
-        <?php foreach (['website' => ['globe', 'Website'], 'linkedin' => ['link', 'LinkedIn'], 'github' => ['link', 'GitHub']] as $k => [$ic, $lb]) if ($p[$k]): ?><a class="chip outline" href="<?= e($p[$k]) ?>" target="_blank" rel="noopener nofollow"><?= icon($ic, 14) ?> <?= $lb ?></a><?php endif ?>
-      </div><?php endif ?>
-    </div>
+    <?php partial('profile_about', ['p' => $p, 'contacts' => $contacts, 'own' => $own, 'placement' => 'profile-about-desktop']) ?>
     <div class="card">
       <div class="card-title"><h3>Skills</h3></div>
       <div class="tag-cloud"><?php foreach ($p['skills'] as $s): ?><a class="chip skill-chip" href="<?= e(url('people?skill=' . urlencode($s))) ?>"><?= e($s) ?></a><?php endforeach ?><?php if (!$p['skills']): ?><span class="muted small">No skills added yet.</span><?php endif ?></div>
@@ -85,3 +99,13 @@ if ($courses) $tabs['courses'] = 'Courses';
     <?php if ($mentor): ?><div class="card"><div class="card-title"><h3><?= icon('compass', 17) ?> Mentor</h3></div><p class="small"><b>Expertise:</b> <?= e($mentor['expertise']) ?></p><?php if (!$own): ?><a class="btn btn-block" href="<?= e(url('mentors/' . $p['id'])) ?>">Request mentorship</a><?php endif ?></div><?php endif ?>
   </aside>
 </div>
+
+<?php foreach ([['followersDialog', 'Followers', $followers, 'People who follow ' . $p['full_name']], ['followingDialog', 'Following', $following, $p['full_name'] . ' follows these people']] as [$dialogId, $dialogTitle, $peopleList, $dialogCopy]): ?>
+<dialog class="people-dialog" id="<?= e($dialogId) ?>" aria-labelledby="<?= e($dialogId) ?>Title">
+  <div class="people-dialog-head"><div><h2 id="<?= e($dialogId) ?>Title"><?= e($dialogTitle) ?> <span><?= count($peopleList) ?></span></h2><p><?= e($dialogCopy) ?></p></div><button class="icon-btn" type="button" data-dialog-close aria-label="Close"><?= icon('x', 19) ?></button></div>
+  <div class="people-dialog-list">
+    <?php foreach ($peopleList as $person): ?><a class="people-dialog-person" href="<?= e(url('profile/' . $person['id'])) ?>"><?= avatar($person, 46) ?><span class="grow"><b><?= e($person['full_name']) ?></b><?= verified_badge($person) ?><small><?= e($person['headline'] ?: $person['major'] ?: role_label($person['role'])) ?></small></span><span class="people-dialog-view">View <?= icon('arrow-right', 14) ?></span></a><?php endforeach ?>
+    <?php if (!$peopleList): ?><div class="people-dialog-empty"><?= icon('users', 27) ?><b>No one here yet</b><span>This list will grow as connections are made.</span></div><?php endif ?>
+  </div>
+</dialog>
+<?php endforeach ?>

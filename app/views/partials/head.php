@@ -3,7 +3,18 @@
 <meta name="theme-color" content="#34b06b">
 <meta name="csrf" content="<?= e(csrf_token()) ?>">
 <meta name="base" content="<?= e(rtrim(url(''), '/')) ?>">
+<script>
+  (() => {
+    try {
+      const theme = localStorage.getItem('manbar.theme');
+      document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+      if (innerWidth > 960 && localStorage.getItem('manbar.sidebar') === 'collapsed') {
+        document.documentElement.classList.add('sidebar-pref-collapsed');
+      }
+    } catch (_) { document.documentElement.dataset.theme = 'light'; }
+  })();
+</script>
 <link rel="icon" type="image/svg+xml" href="<?= e(asset('img/favicon.svg')) ?>">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Cairo:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Cairo:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">

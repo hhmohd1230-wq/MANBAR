@@ -55,6 +55,8 @@ function sidebar_widgets(): array
 function page_feed(): void
 {
     $u = require_login();
+    ensure_product_tour_schema();
+    $u = current_user(true);
     $type = input('type');
     $tag = mb_strtolower(input('tag'));
     $q = input('q');
@@ -77,7 +79,18 @@ function page_feed(): void
     $posts = array_slice($posts, 0, $size);
     if (input('partial')) { foreach ($posts as $p) partial('post_card', ['p' => $p, 'u' => $u]); if ($more) echo '<!--more-->'; return; }
     $compose = input('compose');
-    render('feed', ['u' => $u, 'posts' => $posts, 'more' => $more, 'page' => $page, 'type' => $type, 'tag' => $tag, 'q' => $q, 'sort' => $sort, 'compose' => $compose, 'w' => sidebar_widgets()]);
+    $isHome = !$compose && $page === 1 && !$type && !$tag && !$q && $sort === 'new';
+    $showTour = $isHome && (int) ($u['product_tour_completed'] ?? 1) === 0;
+    render('feed', ['u' => $u, 'posts' => $posts, 'more' => $more, 'page' => $page, 'type' => $type, 'tag' => $tag, 'q' => $q, 'sort' => $sort, 'compose' => $compose, 'w' => sidebar_widgets(), 'isHome' => $isHome, 'showTour' => $showTour]);
+}
+
+function api_tour_complete(): void
+{
+    $u = require_login();
+    ensure_product_tour_schema();
+    update('users', ['product_tour_completed' => 1], 'id = ?', [$u['id']]);
+    current_user(true);
+    json_out(['ok' => true]);
 }
 
 function page_saved(): void

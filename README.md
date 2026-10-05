@@ -50,14 +50,22 @@ All report figures (original + new diagrams + screenshots) are in [`docs/figures
 
 ## 2 · Turn on Google sign-in
 
-1. Go to <https://console.cloud.google.com> → create a project → *APIs & Services* → *OAuth consent screen* (Internal if you have a Google Workspace, otherwise External).
-2. *Credentials* → *Create credentials* → **OAuth client ID** → *Web application*.
+1. Go to <https://console.cloud.google.com> → create a project → *Google Auth Platform* / *OAuth consent screen* → **External** (use **Internal** only if you administer the university's Google Workspace). Scopes: just `openid`, `email`, `profile` (no Google review needed). While the app is in *Testing*, add the accounts that may sign in under *Test users*, or press *Publish app*.
+2. *Clients* / *Credentials* → **Create OAuth client ID** → *Web application*.
 3. **Authorised JavaScript origins:** `http://localhost` (and your real domain later, with `https://`).
-   **Authorised redirect URIs:** `http://localhost/manbar/public/auth/google`
-4. Put the Client ID in `config/config.local.php` (`'google_client_id' => '…'`) or set the `GOOGLE_CLIENT_ID` environment variable.
+   **Authorised redirect URIs:** `http://localhost/manbar/public/auth/google/callback`
+4. Paste the Client ID into `config/config.local.php` (`'google_client_id' => '…'`) or set the `GOOGLE_CLIENT_ID` environment variable. No client secret is needed.
 5. Set `'dev_login' => false` before going live.
 
-MANBAR verifies the Google token on the server, requires a verified e-mail, and only accepts domains of **active universities**.
+How sign-in works:
+- **Continue with Google**, or Chrome's own *Sign in with Google* bubble (One Tap), uses the Google accounts already signed in to the browser.
+- **Type your university email**: type a student number (`202020280`; `@aau.ac.ae` is added for you) or a full address (`saqib.iqbal@aau.ac.ae`). MANBAR emails a **6-digit code** (valid 10 minutes, 5 tries, one new code per minute). After the first code sign-in, people can **set a password**; from then on, typing their email asks for the password instead, and *Forgot password?* sends a code to reset it.
+- **Email setup** (needed for codes): fill the `mail` block in `config/config.local.php`. With Gmail: turn on 2-Step Verification, create an *App password* at <https://myaccount.google.com/apppasswords>, then use host `smtp.gmail.com`, port `587`, secure `tls`, your Gmail address as `user` and `from`, and the 16-letter app password as `pass`. Until it is filled in (and while `dev_login` is on), codes are shown on screen and saved to `storage/mail.log` for testing.
+- First sign-in creates the account. A **student number** address becomes a *student*, and the roster fills in name, major, faculty and year. A **name** address (`name.surname@…`) becomes a *teacher* with a mentor profile. Admins can change roles in *Admin → Users*.
+
+**Admin console login:** set `admin_login` in `config/config.local.php` to a `username` plus a `password_hash` (make one with `C:\xampp\php\php.exe -r "echo password_hash('your password', PASSWORD_DEFAULT);"`). Typing that username on the sign-in page asks for the admin password and opens the dashboard. The account uses an internal address, so it can't be reached with an email code, and 5 wrong passwords lock it for 15 minutes. The old demo login is off (`dev_login => false`); keep it that way.
+
+MANBAR verifies the Google ID token on the server (audience, issuer, expiry, verified e-mail, plus a one-time `state` and `nonce` against replay), and only accepts domains of **active universities**.
 
 ## 3 · Adding more universities, then going public
 

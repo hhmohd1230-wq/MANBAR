@@ -1,6 +1,6 @@
 <?php $title = 'Projects'; ?>
 <div class="pagehead"><div><h1>Projects</h1><p>Join a team or start your own — turn ideas into real work.</p></div><a class="btn btn-primary" href="<?= e(url('projects/new')) ?>"><?= icon('plus', 17) ?> Start a project</a></div>
-<form class="card mb" method="get" style="padding:16px">
+<form class="card mb project-search-panel" method="get">
   <div class="row wrap">
     <div class="search grow" style="min-width:220px"><?= icon('search', 18) ?><input class="input" name="q" value="<?= e($q) ?>" placeholder="Search projects"></div>
     <select class="select" name="status" style="width:auto" data-autosubmit><option value="">Any status</option><?php foreach (['open' => 'Open for applications', 'in_progress' => 'In progress', 'completed' => 'Completed'] as $k => $l): ?><option value="<?= $k ?>" <?= $status === $k ? 'selected' : '' ?>><?= $l ?></option><?php endforeach ?></select>
@@ -9,10 +9,10 @@
   </div>
   <?php if ($skills): ?><div class="row wrap" style="margin-top:12px"><span class="small muted">Skills wanted:</span><?php foreach ($skills as $s): ?><a class="chip <?= strtolower($skill) === strtolower($s) ? 'on' : 'outline' ?> sm" href="<?= e(url('projects?skill=' . urlencode($s))) ?>"><?= e($s) ?></a><?php endforeach ?></div><?php endif ?>
 </form>
-<div class="cards">
+<div class="cards project-grid">
   <?php foreach ($projects as $p): $pct = $p['tasks'] ? round($p['tasks_done'] / $p['tasks'] * 100) : 0; ?>
-  <article class="card item">
-    <div class="item-cover" style="<?= theme_css((int) $p['id']) ?>"><span class="status-pill st-<?= e($p['status']) ?>"><?= e(str_replace('_', ' ', $p['status'])) ?></span><span class="ic-big"><?= icon('rocket', 30) ?></span></div>
+  <article class="card item project-card">
+    <div class="item-cover project-cover project-cover-t<?= project_cover_theme($p) ?> <?= !empty($p['cover_image']) ? 'has-image' : '' ?>" style="<?= e(project_cover_style($p)) ?>"><span class="status-pill st-<?= e($p['status']) ?>"><?= e(str_replace('_', ' ', $p['status'])) ?></span><span class="ic-big"><?= icon('rocket', 30) ?></span></div>
     <div class="item-body">
       <h3><a href="<?= e(url('projects/' . $p['id'])) ?>"><?= e($p['title']) ?></a></h3>
       <p><?= e(excerpt($p['description'], 120)) ?></p>
