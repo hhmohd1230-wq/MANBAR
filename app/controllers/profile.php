@@ -1,6 +1,54 @@
 <?php
+const PROFILE_NAME_STYLES = ['classic', 'rounded', 'wide', 'code'];
+const PROFILE_EFFECTS = ['none', 'aura', 'orbit', 'spark'];
+
+function ensure_profile_customization_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $cols = db_driver() === 'sqlite'
+        ? array_column(qall('PRAGMA table_info(users)'), 'name')
+        : array_column(qall('SHOW COLUMNS FROM users'), 'Field');
+    $definitions = [
+        'cover_image' => 'VARCHAR(255) NULL',
+        'discord' => 'VARCHAR(255) NULL',
+        'whatsapp' => 'VARCHAR(32) NULL',
+        'phone' => 'VARCHAR(32) NULL',
+        'name_style' => "VARCHAR(20) NOT NULL DEFAULT 'classic'",
+        'profile_effect' => "VARCHAR(20) NOT NULL DEFAULT 'none'",
+    ];
+    foreach ($definitions as $column => $definition) {
+        if (!in_array($column, $cols, true)) qexec("ALTER TABLE users ADD COLUMN $column $definition");
+    }
+}
+
+function profile_cover_style(array $profile): string
+{
+    if (empty($profile['cover_image'])) return '';
+    $src = url((string) $profile['cover_image']);
+    return '--profile-cover-image:url("' . str_replace(['"', "'", ')'], '', $src) . '");';
+}
+
+function delete_profile_cover_file(?string $path): void
+{
+    if (!$path || !preg_match('#^uploads/profile-covers/[a-f0-9]{20}\.(?:jpg|png|webp|gif)$#i', $path)) return;
+    $file = __DIR__ . '/../../public/' . str_replace('/', DIRECTORY_SEPARATOR, $path);
+    if (is_file($file)) @unlink($file);
+}
+
+function safe_phone(string $value): ?string
+{
+    $value = trim($value);
+    if ($value === '') return null;
+    $clean = preg_replace('/[^0-9+()\- .]/', '', $value);
+    $digits = preg_replace('/\D/', '', $clean);
+    return strlen($digits) >= 7 ? mb_substr($clean, 0, 32) : null;
+}
+
 function profile_data(int $id): ?array
 {
+    ensure_profile_customization_schema();
     $p = qrow('SELECT u.*, un.short_name AS uni_short, un.name AS uni_name FROM users u JOIN universities un ON un.id = u.university_id WHERE u.id = ?', [$id]);
     if (!$p) return null;
     $p['skills'] = array_column(qall("SELECT name FROM user_skills WHERE user_id = ? AND kind = 'skill' ORDER BY name", [$id]), 'name');
@@ -23,8 +71,14 @@ function page_profile(int $id): void
     $badges = qall('SELECT b.*, ub.created_at AS earned FROM user_badges ub JOIN badges b ON b.id = ub.badge_id WHERE ub.user_id = ? ORDER BY ub.created_at DESC', [$id]);
     $courses = qall("SELECT c.*, (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS students FROM courses c WHERE c.author_id = ? AND c.status = 'published'", [$id]);
     $mentor = qrow('SELECT * FROM mentor_profiles WHERE user_id = ? AND active = 1', [$id]);
+    $followers = qall("SELECT u.id, u.full_name, u.email, u.avatar_url, u.headline, u.major, u.role, u.verified
+        FROM follows f JOIN users u ON u.id = f.follower_id
+        WHERE f.followed_id = ? AND u.status = 'active' ORDER BY f.created_at DESC LIMIT 100", [$id]);
+    $following = qall("SELECT u.id, u.full_name, u.email, u.avatar_url, u.headline, u.major, u.role, u.verified
+        FROM follows f JOIN users u ON u.id = f.followed_id
+        WHERE f.follower_id = ? AND u.status = 'active' ORDER BY f.created_at DESC LIMIT 100", [$id]);
     $lvl = level_for((int) $p['points']);
-    render('profile', compact('u', 'p', 'tab', 'posts', 'projects', 'services', 'badges', 'courses', 'mentor', 'lvl'));
+    render('profile', compact('u', 'p', 'tab', 'posts', 'projects', 'services', 'badges', 'courses', 'mentor', 'followers', 'following', 'lvl'));
 }
 
 function page_me(): void { redirect('profile/' . require_login()['id']); }
@@ -41,9 +95,13 @@ function page_profile_edit(): void
 function profile_save(): void
 {
     $u = require_login();
+    ensure_profile_customization_schema();
+    $current = profile_data((int) $u['id']);
     $roster = $u['student_id'] ? qrow('SELECT * FROM roster WHERE university_id = ? AND student_id = ?', [$u['university_id'], $u['student_id']]) : null;
     $name = $roster ? $roster['full_name'] : input('full_name');
     if (mb_strlen($name) < 3) { flash('Please enter your full name.', 'error'); redirect('profile/edit'); }
+    $nameStyle = input('name_style', 'classic');
+    $profileEffect = input('profile_effect', 'none');
     $data = [
         'full_name' => mb_substr($name, 0, 150),
         'headline' => mb_substr(input('headline'), 0, 160) ?: null,
@@ -56,9 +114,20 @@ function profile_save(): void
         'website' => safe_url(input('website')),
         'linkedin' => safe_url(input('linkedin')),
         'github' => safe_url(input('github')),
+        'discord' => safe_url(input('discord')),
+        'whatsapp' => safe_phone(input('whatsapp')),
+        'phone' => safe_phone(input('phone')),
+        'name_style' => in_array($nameStyle, PROFILE_NAME_STYLES, true) ? $nameStyle : 'classic',
+        'profile_effect' => in_array($profileEffect, PROFILE_EFFECTS, true) ? $profileEffect : 'none',
     ];
     try { if ($img = save_upload('avatar', 'avatars')) $data['avatar_url'] = $img; } catch (RuntimeException $ex) { flash($ex->getMessage(), 'error'); redirect('profile/edit'); }
+    $oldCover = $current['cover_image'] ?? null;
+    if (input('remove_cover_image')) $data['cover_image'] = null;
+    try {
+        if ($cover = save_upload('cover_image', 'profile-covers')) $data['cover_image'] = $cover;
+    } catch (RuntimeException $ex) { flash($ex->getMessage(), 'error'); redirect('profile/edit'); }
     update('users', $data, 'id = ?', [$u['id']]);
+    if (array_key_exists('cover_image', $data) && $data['cover_image'] !== $oldCover) delete_profile_cover_file($oldCover);
     save_skill_list((int) $u['id'], 'skill', input('skills'));
     save_skill_list((int) $u['id'], 'interest', input('interests'));
 

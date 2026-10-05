@@ -5,6 +5,20 @@ return [
     ['GET',  '/',                         'page_landing'],
     ['GET',  '/login',                    'page_login'],
     ['POST', '/auth/google',              'auth_google'],
+    ['POST', '/auth/google/start',        'auth_google_start'],
+    ['GET',  '/auth/google/callback',     'page_google_callback'],
+    ['POST', '/auth/google/finish',       'auth_google_finish'],
+    ['POST', '/auth/email/start',         'auth_email_start'],
+    ['POST', '/auth/email/code',          'auth_email_code'],
+    ['GET',  '/auth/email/verify',        'page_email_verify'],
+    ['POST', '/auth/email/verify',        'auth_email_verify'],
+    ['GET',  '/auth/email/password',      'page_email_password'],
+    ['POST', '/auth/email/password',      'auth_email_password'],
+    ['GET',  '/auth/admin',               'page_admin_login'],
+    ['POST', '/auth/admin',               'auth_admin_login'],
+    ['GET',  '/auth/password',            'page_password_set'],
+    ['POST', '/auth/password',            'auth_password_set'],
+    ['POST', '/auth/password/skip',       'auth_password_skip'],
     ['POST', '/auth/dev',                 'auth_dev'],
     ['POST', '/logout',                   'auth_logout'],
     ['GET',  '/onboarding',               'page_onboarding'],
@@ -29,6 +43,7 @@ return [
     ['GET',  '/api/counts',               'api_counts'],
     ['POST', '/api/ai/assist',            'api_ai_assist'],
     ['POST', '/api/ai/guide',             'api_ai_guide'],
+    ['POST', '/api/tour/complete',        'api_tour_complete'],
 
     // profiles & people
     ['GET',  '/me',                       'page_me'],
@@ -85,6 +100,8 @@ return [
     ['GET',  '/messages',                 'page_messages'],
     ['GET',  '/messages/{with}',          'page_messages'],
     ['POST', '/messages/{to}',            'message_send'],
+    ['GET',  '/api/messages/{with}',       'api_messages'],
+    ['POST', '/api/messages/{with}/typing','api_message_typing'],
     ['GET',  '/achievements',             'page_achievements'],
 
     // admin

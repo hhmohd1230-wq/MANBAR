@@ -1,51 +1,57 @@
 <?php
 $title = 'Sign in';
-$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$loginUri = (cfg('base_url') ?: $scheme . '://' . $_SERVER['HTTP_HOST']) . url('auth/google');
+$cinema = 'login';
+$logo = e(asset('img/logo.svg'));
+$gmark = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.7 7l7.3 5.7c4.3-4 6.8-9.9 6.8-17.2z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-2.9-.8-4.7s.3-3.3.8-4.7l-7.9-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.3-5.7c-2 1.4-4.7 2.3-8.6 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 ?>
-<div class="auth">
-  <section class="auth-art">
-    <a class="brand" href="<?= e(url('')) ?>"><img src="<?= e(asset('img/logo.svg')) ?>" alt="" width="46" height="46"><span>MAN<b>BAR</b><small>منبر · Student platform</small></span></a>
-    <div>
-      <h2>The stage for every student idea.</h2>
-      <p>One trusted place for ideas, teams, services, courses and mentors at your university.</p>
-      <div class="pts"><span><?= icon('bulb', 16) ?> Ideas</span><span><?= icon('rocket', 16) ?> Projects</span><span><?= icon('store', 16) ?> Marketplace</span><span><?= icon('book', 16) ?> Courses</span><span><?= icon('compass', 16) ?> Mentors</span></div>
-    </div>
-    <div class="small" style="opacity:.8">Al Ain University · Capstone project</div>
-  </section>
-  <section class="auth-main">
-    <div class="auth-box">
-      <h1>Welcome 👋</h1>
-      <p class="muted">Sign in with your university Google account (<b><?= e($domains) ?></b>). Your student number is matched with the university roster to fill your profile for you.</p>
+<canvas class="c-field" id="cField" aria-hidden="true"></canvas>
+<div class="c-auth">
+  <?php partial('auth_art') ?>
 
-      <?php if ($client_id): ?>
-        <script src="https://accounts.google.com/gsi/client" async defer></script>
-        <div id="g_id_onload" data-client_id="<?= e($client_id) ?>" data-ux_mode="redirect" data-login_uri="<?= e($loginUri) ?>" data-auto_prompt="false"></div>
-        <div class="g-btn-wrap"><div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left" data-width="360"></div></div>
+  <section class="c-auth-main tone-paper">
+    <div class="c-auth-box c-focus" style="--i:2">
+      <h2>Sign in or join</h2>
+      <p>Use your university Google account. First time here? Your account is created automatically and your profile fills itself.</p>
+
+      <form method="post" action="<?= e(url('auth/google/start')) ?>" class="c-g-form">
+        <?= csrf_field() ?>
+        <button class="c-gbtn" type="submit" <?= $client_id ? '' : 'disabled aria-describedby="gHint"' ?>><?= $gmark ?> Continue with Google</button>
+      </form>
+
+      <div class="c-or">or use your university email</div>
+
+      <form method="post" action="<?= e(url('auth/email/start')) ?>" class="c-mail" id="cMail" novalidate>
+        <?= csrf_field() ?>
+        <label class="c-mail-l" for="mailLocal">University email</label>
+        <div class="c-mail-row">
+          <div class="c-mail-field">
+            <input class="c-mail-in" id="mailLocal" name="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="202020280 or name.surname" required aria-describedby="mailRole">
+            <?php if (count($unis) > 1): ?>
+              <label class="sr" for="mailDom">University</label>
+              <select class="c-mail-dom" id="mailDom" name="domain"><?php foreach ($unis as $u): ?><option value="<?= e($u['domain']) ?>">@<?= e($u['domain']) ?></option><?php endforeach ?></select>
+            <?php else: ?>
+              <span class="c-mail-dom" id="mailDom" data-domain="<?= e($unis[0]['domain'] ?? '') ?>">@<?= e($unis[0]['domain'] ?? '') ?></span>
+              <input type="hidden" name="domain" value="<?= e($unis[0]['domain'] ?? '') ?>">
+            <?php endif ?>
+          </div>
+          <button class="c-btn" type="submit">Continue <?= icon('arrow-right', 16) ?></button>
+        </div>
+        <p class="c-role" id="mailRole" aria-live="polite"><span class="c-role-chip">Student number</span> joins as a <b>student</b> and fills your profile from the roster · <span class="c-role-chip">name.surname</span> joins as a <b>teacher</b></p>
+        <p class="c-hint c-mail-note">We’ll email you a 6-digit code. After that you can set a password so you don’t need a code every time.</p>
+      </form>
+
+      <?php if (!$client_id): ?>
+        <div class="c-setup" id="gHint">
+          <b><?= icon('info', 16) ?> Google sign-in isn’t switched on yet</b>
+          <p>Add your Google OAuth Client ID to <code>config/config.local.php</code> and register this redirect URI in Google Cloud:</p>
+          <code class="c-setup-uri"><?= e($redirect_uri) ?></code>
+        </div>
       <?php else: ?>
-        <div class="g-btn-wrap"><button class="g-fake" type="button" disabled style="opacity:.6;cursor:not-allowed"><svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.200 5.300-4.700 7l7.300 5.700c4.300-4 6.800-9.900 6.800-17.200z"/><path fill="#FBBC05" d="M10.500 28.700c-.5-1.400-.8-2.900-.8-4.700s.3-3.300.8-4.700l-7.900-6.100C.9 16.500 0 20.100 0 24s.9 7.500 2.600 10.800l7.900-6.100z"/><path fill="#34A853" d="M24 48c6.500 0 11.900-2.100 15.900-5.800l-7.300-5.700c-2 1.400-4.700 2.300-8.600 2.300-6.300 0-11.600-4.100-13.500-9.800l-7.900 6.100C6.500 42.600 14.600 48 24 48z"/></svg> Continue with Google</button></div>
-        <p class="hint tc">Google Sign-In is not configured yet. Set <span class="code">GOOGLE_CLIENT_ID</span> (see README) to switch it on.</p>
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+        <div id="g_id_onload" data-client_id="<?= e($client_id) ?>" data-callback="manbarOneTap" data-nonce="<?= e($onetap_nonce) ?>" data-auto_prompt="true" data-auto_select="false" data-cancel_on_tap_outside="false" data-itp_support="true" data-use_fedcm_for_prompt="true" data-context="signin" <?= count($unis) === 1 ? 'data-hd="' . e($unis[0]['domain']) . '"' : '' ?>></div>
       <?php endif ?>
 
-      <?php if (cfg('dev_login')): ?>
-        <div class="or">demo mode</div>
-        <form class="devbox" method="post" action="<?= e(url('auth/dev')) ?>">
-          <?= csrf_field() ?>
-          <b class="small row"><?= icon('lock', 16) ?> Local demo login <span class="chip sm">dev only</span></b>
-          <p class="hint" style="margin-top:6px">Try the student-number flow: type <span class="code">202020280</span> and your name and details are filled in from the roster. Turn this off in production.</p>
-          <div class="field" style="margin:12px 0 10px"><input class="input" name="identifier" placeholder="Student number or @aau.ac.ae email" autocomplete="off" required></div>
-          <button class="btn btn-primary btn-block" type="submit">Continue <?= icon('arrow-right', 16) ?></button>
-          <?php if ($demo): ?>
-            <div class="small muted" style="margin-top:14px;font-weight:600">…or jump in as a demo account</div>
-            <div class="demo-list">
-              <?php foreach ($demo as $d): ?>
-                <button type="submit" name="identifier" value="<?= e($d['email']) ?>" formnovalidate><?= avatar($d, 30) ?><span class="grow"><b class="small"><?= e($d['full_name']) ?></b><br><span class="xs muted"><?= e($d['email']) ?></span></span><span class="role-pill <?= e($d['role']) ?>"><?= e(role_label($d['role'])) ?></span></button>
-              <?php endforeach ?>
-            </div>
-          <?php endif ?>
-        </form>
-      <?php endif ?>
-      <p class="hint tc" style="margin-top:22px">By continuing you agree to use MANBAR respectfully. Only verified university accounts can join.</p>
+      <p class="c-terms">By continuing you agree to use MANBAR respectfully. Only verified university accounts can join.</p>
     </div>
   </section>
 </div>

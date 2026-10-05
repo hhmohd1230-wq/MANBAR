@@ -44,8 +44,15 @@ CREATE TABLE users (
   website VARCHAR(255) NULL,
   linkedin VARCHAR(255) NULL,
   github VARCHAR(255) NULL,
+  discord VARCHAR(255) NULL,
+  whatsapp VARCHAR(32) NULL,
+  phone VARCHAR(32) NULL,
+  cover_image VARCHAR(255) NULL,
+  name_style VARCHAR(20) NOT NULL DEFAULT 'classic',
+  profile_effect VARCHAR(20) NOT NULL DEFAULT 'none',
   points INT NOT NULL DEFAULT 0,
   profile_complete INT NOT NULL DEFAULT 0,
+  product_tour_completed INT NOT NULL DEFAULT 0,
   last_login DATETIME NULL,
   created_at DATETIME NOT NULL,
   FOREIGN KEY (university_id) REFERENCES universities(id)
@@ -144,6 +151,8 @@ CREATE TABLE projects (
   status VARCHAR(20) NOT NULL DEFAULT 'open',       -- open | in_progress | completed | closed
   max_members INT NOT NULL DEFAULT 5,
   outcome TEXT NULL,
+  cover_image VARCHAR(255) NULL,
+  cover_theme INT NOT NULL DEFAULT 0,
   hidden INT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL,
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
@@ -339,12 +348,25 @@ CREATE TABLE messages (
   sender_id INT NOT NULL,
   receiver_id INT NOT NULL,
   body TEXT NOT NULL,
+  attachment_path VARCHAR(500) NULL,
+  attachment_name VARCHAR(255) NULL,
+  attachment_type VARCHAR(100) NULL,
+  attachment_size INT NULL,
   is_read INT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL,
   FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
 ) {{ENGINE}};
 CREATE INDEX idx_messages_pair ON messages(sender_id, receiver_id);
+
+CREATE TABLE message_typing (
+  user_id INT NOT NULL,
+  receiver_id INT NOT NULL,
+  updated_at DATETIME NOT NULL,
+  PRIMARY KEY (user_id, receiver_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+) {{ENGINE}};
 
 CREATE TABLE settings (
   k VARCHAR(60) NOT NULL PRIMARY KEY,

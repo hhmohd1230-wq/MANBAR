@@ -13,4 +13,14 @@ return [
     'dev_login'        => true,        // set to false when you go live
     'admin_emails'     => ['202020280@aau.ac.ae'],
     'anthropic_api_key' => '',         // optional
+    // Email for sign-in codes. Gmail example: turn on 2-Step Verification, create an App password
+    // (myaccount.google.com/apppasswords) and paste the 16 letters as 'pass'.
+    'mail' => [
+        'host'   => '',              // smtp.gmail.com
+        'port'   => 587,
+        'secure' => 'tls',
+        'user'   => '',              // you@gmail.com
+        'pass'   => '',              // App password (keep this file private; it is git-ignored)
+        'from'   => '',              // you@gmail.com
+    ],
 ];

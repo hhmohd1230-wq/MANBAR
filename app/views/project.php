@@ -9,7 +9,7 @@ $full = count($members) >= (int) $p['max_members'];
 <div class="page-grid">
   <div class="stack gap-l">
     <div class="card" style="padding:0;overflow:hidden">
-      <div class="item-cover" style="height:130px;<?= theme_css((int) $p['id']) ?>"><span class="status-pill st-<?= e($p['status']) ?>"><?= e(str_replace('_', ' ', $p['status'])) ?></span><span class="ic-big"><?= icon('rocket', 34) ?></span></div>
+      <div class="item-cover project-cover project-detail-cover project-cover-t<?= project_cover_theme($p) ?> <?= !empty($p['cover_image']) ? 'has-image' : '' ?>" style="<?= e(project_cover_style($p)) ?>"><span class="status-pill st-<?= e($p['status']) ?>"><?= e(str_replace('_', ' ', $p['status'])) ?></span><span class="ic-big"><?= icon('rocket', 34) ?></span></div>
       <div style="padding:22px 26px 26px">
         <h1 style="margin-bottom:6px"><?= e($p['title']) ?></h1>
         <div class="row small muted"><a class="row gap-s" href="<?= e(url('profile/' . $p['owner_id'])) ?>" style="color:var(--ink2)"><?= avatar(['full_name' => $p['owner_name'], 'avatar_url' => $p['owner_avatar'], 'email' => $p['owner_email']], 28) ?> <b><?= e($p['owner_name']) ?></b></a><span>· started <?= e(time_ago($p['created_at'])) ?></span></div>
@@ -84,9 +84,11 @@ $full = count($members) >= (int) $p['max_members'];
       <div class="w-list"><?php foreach ($members as $m): ?><div class="person"><a href="<?= e(url('profile/' . $m['user_id'])) ?>"><?= avatar($m, 40) ?></a><div class="grow"><a class="nm" href="<?= e(url('profile/' . $m['user_id'])) ?>"><?= e($m['full_name']) ?></a><?= verified_badge($m) ?><div class="xs muted"><?= e($m['role']) ?></div></div></div><?php endforeach ?></div></div>
     <?php if ($isOwner): ?>
     <div class="card"><div class="card-title"><h3><?= icon('settings', 18) ?> Manage project</h3></div>
-      <form method="post" action="<?= e(url('projects/' . $p['id'] . '/status')) ?>"><?= csrf_field() ?>
+      <form method="post" action="<?= e(url('projects/' . $p['id'] . '/status')) ?>" enctype="multipart/form-data"><?= csrf_field() ?>
         <div class="field"><label class="f">Status</label><select class="select" name="status" id="pstatus"><?php foreach (['open' => 'Open for applications', 'in_progress' => 'In progress', 'completed' => 'Completed', 'closed' => 'Closed'] as $k => $l): ?><option value="<?= $k ?>" <?= $p['status'] === $k ? 'selected' : '' ?>><?= $l ?></option><?php endforeach ?></select></div>
         <div class="field"><label class="f">Max team size</label><input class="input" type="number" name="max_members" min="2" max="30" value="<?= (int) $p['max_members'] ?>"></div>
+        <div class="field"><label class="f">Cover background</label><div class="project-cover-options compact"><?php foreach (PROJECT_COVER_THEMES as $i => $label): ?><label class="project-cover-choice" title="<?= e($label) ?>"><input type="radio" name="cover_theme" value="<?= $i ?>" <?= project_cover_theme($p) === $i ? 'checked' : '' ?>><span class="project-cover-swatch project-cover project-cover-t<?= $i ?>"><i><?= icon('check', 13) ?></i></span></label><?php endforeach ?></div></div>
+        <div class="field"><label class="f" for="projectCoverManage">Custom image</label><input class="input" id="projectCoverManage" type="file" name="cover_image" accept="image/jpeg,image/png,image/webp,image/gif"><?php if (!empty($p['cover_image'])): ?><label class="small muted row gap-s" style="margin-top:8px"><input type="checkbox" name="remove_cover_image" value="1"> Remove current custom image</label><?php endif ?></div>
         <div class="field"><label class="f">Outcome (shown when completed)</label><textarea class="textarea" name="outcome" style="min-height:70px" placeholder="What did you achieve?"><?= e($p['outcome']) ?></textarea></div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
         <div class="hint">Completing a project gives every member +30 points.</div>

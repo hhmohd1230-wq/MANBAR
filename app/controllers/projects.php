@@ -1,7 +1,41 @@
 <?php
+function ensure_project_cover_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    $cols = db_driver() === 'sqlite'
+        ? array_column(qall('PRAGMA table_info(projects)'), 'name')
+        : array_column(qall('SHOW COLUMNS FROM projects'), 'Field');
+    if (!in_array('cover_image', $cols, true)) qexec('ALTER TABLE projects ADD COLUMN cover_image VARCHAR(255) NULL');
+    if (!in_array('cover_theme', $cols, true)) qexec('ALTER TABLE projects ADD COLUMN cover_theme INT NULL DEFAULT NULL');
+}
+
+function project_cover_theme(array $project): int
+{
+    if (isset($project['cover_theme'])) return max(0, min(count(PROJECT_COVER_THEMES) - 1, (int) $project['cover_theme']));
+    $count = count(PROJECT_COVER_THEMES);
+    return ($count - (abs((int) ($project['id'] ?? 0)) % $count)) % $count;
+}
+
+function project_cover_style(array $project): string
+{
+    if (empty($project['cover_image'])) return '';
+    $src = url((string) $project['cover_image']);
+    return '--project-cover-image:url("' . str_replace(['"', "'", ')'], '', $src) . '");';
+}
+
+function delete_project_cover_file(?string $path): void
+{
+    if (!$path || !preg_match('#^uploads/projects/[a-f0-9]{24}\.(?:jpg|png|webp|gif)$#i', $path)) return;
+    $file = __DIR__ . '/../../public/' . str_replace('/', DIRECTORY_SEPARATOR, $path);
+    if (is_file($file)) @unlink($file);
+}
+
 function page_projects(): void
 {
     $u = require_login();
+    ensure_project_cover_schema();
     $status = input('status');
     $skill = input('skill');
     $q = input('q');
@@ -26,6 +60,7 @@ function page_projects(): void
 function page_project_new(): void
 {
     $u = require_login();
+    ensure_project_cover_schema();
     $from = input_int('from_post') ? qrow('SELECT id, title, body, tags FROM posts WHERE id = ? AND user_id = ?', [input_int('from_post'), $u['id']]) : null;
     render('project_new', compact('u', 'from'));
 }
@@ -33,13 +68,22 @@ function page_project_new(): void
 function project_create(): void
 {
     $u = require_login();
+    ensure_project_cover_schema();
     $title = mb_substr(input('title'), 0, 200);
     $desc = mb_substr(trim((string) ($_POST['description'] ?? '')), 0, 5000);
     if (mb_strlen($title) < 3 || mb_strlen($desc) < 15) { flash('Add a title and a description (15+ characters).', 'error'); redirect('projects/new'); }
+    try {
+        $coverImage = save_upload('cover_image', 'projects');
+    } catch (RuntimeException $ex) {
+        flash($ex->getMessage(), 'error');
+        redirect('projects/new');
+    }
     $id = insert('projects', [
         'owner_id' => $u['id'], 'title' => $title, 'description' => $desc,
         'needed_skills' => implode(',', array_slice(parse_skill_input(input('needed_skills')), 0, 10)) ?: null,
         'max_members' => max(2, min(30, input_int('max_members', 5))),
+        'cover_image' => $coverImage,
+        'cover_theme' => max(0, min(count(PROJECT_COVER_THEMES) - 1, input_int('cover_theme'))),
     ]);
     insert('project_members', ['project_id' => $id, 'user_id' => $u['id'], 'role' => 'Project owner', 'joined_at' => now()]);
     if (input_int('from_post')) update('posts', ['project_id' => $id], 'id = ? AND user_id = ?', [input_int('from_post'), $u['id']]);
@@ -50,6 +94,7 @@ function project_create(): void
 
 function load_project(int $id): array
 {
+    ensure_project_cover_schema();
     return qrow('SELECT p.*, u.full_name AS owner_name, u.avatar_url AS owner_avatar, u.email AS owner_email, u.verified AS owner_verified FROM projects p JOIN users u ON u.id = p.owner_id WHERE p.id = ?', [$id]) ?? abort(404, 'Project not found.');
 }
 function project_member(int $pid, int $uid): bool { return (bool) qval('SELECT COUNT(*) FROM project_members WHERE project_id = ? AND user_id = ?', [$pid, $uid]); }
@@ -154,6 +199,14 @@ function project_status(int $id): void
     $st = input('status');
     if (!in_array($st, ['open', 'in_progress', 'completed', 'closed'], true)) abort(422);
     $data = ['status' => $st];
+    $data['cover_theme'] = max(0, min(count(PROJECT_COVER_THEMES) - 1, input_int('cover_theme', project_cover_theme($p))));
+    if (input('remove_cover_image')) $data['cover_image'] = null;
+    try {
+        if ($coverImage = save_upload('cover_image', 'projects')) $data['cover_image'] = $coverImage;
+    } catch (RuntimeException $ex) {
+        flash($ex->getMessage(), 'error');
+        redirect("projects/$id");
+    }
     if ($st === 'completed') {
         $data['outcome'] = mb_substr(trim((string) ($_POST['outcome'] ?? '')), 0, 3000) ?: null;
         if ($p['status'] !== 'completed') foreach (qall('SELECT user_id FROM project_members WHERE project_id = ?', [$id]) as $m) {
@@ -163,6 +216,7 @@ function project_status(int $id): void
     }
     if ($p['max_members'] != input_int('max_members', (int) $p['max_members']) && input_int('max_members')) $data['max_members'] = max(2, min(30, input_int('max_members')));
     update('projects', $data, 'id = ?', [$id]);
+    if (array_key_exists('cover_image', $data) && $data['cover_image'] !== ($p['cover_image'] ?? null)) delete_project_cover_file($p['cover_image'] ?? null);
     flash('Project updated.');
     redirect("projects/$id");
 }
@@ -172,6 +226,7 @@ function project_delete(int $id): void
     $p = load_project($id);
     if ((int) $p['owner_id'] !== (int) $u['id'] && !is_admin()) abort(403);
     qexec('DELETE FROM projects WHERE id = ?', [$id]);
+    delete_project_cover_file($p['cover_image'] ?? null);
     flash('Project deleted.');
     redirect('projects');
 }

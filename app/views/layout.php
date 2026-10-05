@@ -16,6 +16,7 @@ $title = $title ?? 'MANBAR';
 <div class="shell">
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="<?= e(url('feed')) ?>"><img src="<?= e(asset('img/logo.svg')) ?>" alt=""><span>MAN<b>BAR</b><small>منبر · <?= e($me['uni_short']) ?> students</small></span></a>
+    <button class="icon-btn sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Hide sidebar" title="Hide sidebar"><?= icon('panel-left-close', 19) ?></button>
     <nav class="nav">
       <a class="<?= trim(nav_on('/feed', '/post')) ?>" href="<?= e(url('feed')) ?>"><?= icon('home') ?> Home feed</a>
       <a class="<?= trim(nav_on('/projects')) ?>" href="<?= e(url('projects')) ?>"><?= icon('rocket') ?> Projects</a>
@@ -37,11 +38,13 @@ $title = $title ?? 'MANBAR';
       <div class="xs" style="opacity:.9"><?= (int) $me['points'] ?> pts<?= $lvl['next'] ? ' · ' . ($lvl['next_at'] - $me['points']) . ' to ' . e($lvl['next']) : ' · Max level' ?></div>
     </div>
   </aside>
+  <button class="icon-btn sidebar-restore" id="sidebarRestore" type="button" aria-label="Show sidebar" title="Show sidebar"><?= icon('panel-left-open', 20) ?></button>
   <div class="main">
     <header class="topbar">
       <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu"><?= icon('menu', 22) ?></button>
       <form class="search" action="<?= e(url('search')) ?>" method="get" role="search"><?= icon('search', 18) ?><input class="input" name="q" placeholder="Search ideas, people, projects, services…" value="<?= e($_GET['q'] ?? '') ?>" autocomplete="off"></form>
-      <a class="btn btn-primary btn-sm" href="<?= e(url('feed?compose=idea')) ?>" style="margin-left:auto"><?= icon('plus', 16) ?> <span class="hide-s">New post</span></a>
+      <a class="btn btn-primary btn-sm" data-tour="create" href="<?= e(url('feed?compose=idea')) ?>" style="margin-left:auto"><?= icon('plus', 16) ?> <span class="hide-s">New post</span></a>
+      <button class="icon-btn theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" aria-pressed="false" title="Switch to dark mode"><span class="theme-icon theme-icon-moon"><?= icon('moon', 20) ?></span><span class="theme-icon theme-icon-sun"><?= icon('sun', 20) ?></span></button>
       <a class="icon-btn" href="<?= e(url('messages')) ?>" title="Messages"><?= icon('mail', 21) ?><?php if ($msgN): ?><span class="badge-n" data-count="messages"><?= $msgN ?></span><?php endif ?></a>
       <a class="icon-btn" href="<?= e(url('notifications')) ?>" title="Notifications"><?= icon('bell', 21) ?><?php if ($notifN): ?><span class="badge-n" data-count="notifications"><?= $notifN ?></span><?php endif ?></a>
       <div class="user-menu">
@@ -69,7 +72,7 @@ $title = $title ?? 'MANBAR';
   <a class="<?= trim(nav_on('/learn')) ?>" href="<?= e(url('learn')) ?>"><?= icon('book', 21) ?>Learn</a>
   <a class="<?= trim(nav_on('/profile', '/me')) ?>" href="<?= e(url('me')) ?>"><?= icon('user', 21) ?>Me</a>
 </nav>
-<?php partial('guide') ?>
+<?php partial('guide', ['showTour' => $showTour ?? false]) ?>
 <?php partial('toasts') ?>
 <script src="<?= e(asset('js/app.js')) ?>" defer></script>
 </body>

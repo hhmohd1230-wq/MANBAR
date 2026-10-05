@@ -38,6 +38,11 @@ const FACULTIES = [
 const THEMES = [
     ['#34b36d', '#a7e8c1'], ['#1f9d8a', '#9be7d7'], ['#5fbf4a', '#d4f2a8'], ['#2a9d6f', '#7fd6b0'], ['#3fb58a', '#c0f0dd'], ['#6bcf8a', '#e2f9b5'],
 ];
+
+/** Project-specific cover presets. The stored index maps to the CSS classes below. */
+const PROJECT_COVER_THEMES = [
+    'Campus green', 'Innovation blue', 'Creative violet', 'Desert sunrise',
+];
 function theme_css(int $i): string
 {
     [$a, $b] = THEMES[$i % count(THEMES)];
