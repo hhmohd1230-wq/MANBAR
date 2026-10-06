@@ -299,16 +299,40 @@
     addEventListener('pagehide', () => { if (profileCoverObjectUrl) URL.revokeObjectURL(profileCoverObjectUrl); }, { once: true });
   }
 
+  /* ---------- shared MANBAR AI correction review ---------- */
+  const writingEngineLabel = engine => ({
+    gemini: 'Gemini AI', groq: 'Groq AI', openai: 'OpenAI', claude: 'Claude AI', rules: 'Local smart rules'
+  }[engine] || 'MANBAR AI');
+  const writingChangesMarkup = changes => {
+    const valid = (changes || []).filter(change => change && (change.from || change.to));
+    if (!valid.length) return '';
+    return `<div class="writing-change-list" aria-label="Detailed corrections">${valid.slice(0, 8).map(change => `<span class="writing-change" title="${esc(change.why || 'Writing improvement')}"><s>${esc(change.from || 'Original')}</s><i aria-hidden="true">→</i><b>${esc(change.to || 'Improved')}</b>${change.why ? `<small>${esc(change.why)}</small>` : ''}</span>`).join('')}</div>`;
+  };
+  const writingReviewMarkup = ({ items, engine = 'rules', applyLabel = 'Apply improvements', dismissLabel = 'Keep my wording' }) => {
+    const count = items.reduce((total, item) => total + Math.max(1, (item.changes || []).length), 0);
+    return `<div class="writing-review-head"><span class="writing-review-mark">${icon('sparkles', 18)}</span><div class="grow"><b>MANBAR Assistant</b><span>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</span></div><em>${esc(writingEngineLabel(engine))}</em></div>
+      <p class="writing-review-intro">I polished your writing. Review the result and every important change before applying it.</p>
+      <div class="writing-review-items">${items.map(item => `<section class="writing-review-item"><span>${esc(item.label)}</span><p>${esc(item.corrected)}</p>${writingChangesMarkup(item.changes)}</section>`).join('')}</div>
+      <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-review-apply>${icon('check', 14)} ${esc(applyLabel)}</button><button class="btn btn-ghost btn-sm" type="button" data-review-dismiss>${esc(dismissLabel)}</button></div>`;
+  };
+
   /* ---------- automatic local writing coach ---------- */
   $$('[data-ai-writing-form]').forEach(form => {
     const fields = $$('[data-ai-writing]', form);
     const panel = $('[data-writing-assist]', form);
     const draftButton = $('[data-ai-autofill]', form);
-    const improveButton = $('[data-ai-improve-all]', form);
+    let improveButton = $('[data-ai-improve-all]', form);
     const toneControl = $('[data-ai-tone]', form);
     const writingContext = form.dataset.aiContext || 'general writing';
     const selectedTone = () => toneControl?.value || 'natural';
     if (!fields.length || !panel) return;
+    if (!improveButton && !$('#aiFix', form)) {
+      const tools = document.createElement('div');
+      tools.className = 'ai-inline-review-tools';
+      tools.innerHTML = `<button class="btn btn-ghost btn-sm" type="button" data-ai-improve-all>${icon('sparkles', 15)} Review with MANBAR AI</button>`;
+      panel.before(tools);
+      improveButton = $('[data-ai-improve-all]', tools);
+    }
     let timer = 0, requestNo = 0, lastChecked = '', dismissed = '';
 
     const signature = () => fields.map(field => field.value.trim()).join('\u241e');
@@ -333,7 +357,7 @@
         }));
         if (ownRequest !== requestNo || signature() !== sig) return;
         const suggestions = checked.map((result, index) => result && result.fix.corrected !== fields[index].value.trim()
-          ? { field: fields[index], original: fields[index].value.trim(), corrected: result.fix.corrected, changes: result.fix.changes || [] }
+          ? { field: fields[index], original: fields[index].value.trim(), corrected: result.fix.corrected, changes: result.fix.changes || [], engine: result.fix.engine || 'rules' }
           : null).filter(Boolean);
         if (!suggestions.length) {
           panel.className = 'writing-assist is-clear';
@@ -341,20 +365,20 @@
           setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 2400);
           return;
         }
-        const count = suggestions.reduce((n, item) => n + Math.max(1, item.changes.length), 0);
-        const usedLanguageAI = checked.some(result => ['gemini', 'groq', 'openai', 'claude'].includes(result?.fix?.engine));
-        panel.className = 'writing-assist has-suggestions';
-        panel.innerHTML = `<div class="writing-assist-head"><span>${icon('sparkles', 17)} <b>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</b></span><span class="writing-assist-local">${usedLanguageAI ? 'AI language review' : 'Local writing review'}</span></div>
-          <div class="writing-assist-previews">${suggestions.map(item => `<div><span>${item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description'}</span><div><p>${esc(item.corrected)}</p>${item.changes?.length ? `<div class="writing-reasons">${[...new Set(item.changes.map(change => change.why).filter(Boolean))].slice(0, 4).map(why => `<span>${esc(why)}</span>`).join('')}</div>` : ''}</div></div>`).join('')}</div>
-          <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-writing-apply>${icon('check', 14)} Apply improvements</button><button class="btn btn-ghost btn-sm" type="button" data-writing-dismiss>Keep my wording</button></div>`;
-        $('[data-writing-apply]', panel).onclick = () => {
+        const reviewEngine = suggestions.find(item => item.engine !== 'rules')?.engine || suggestions[0].engine;
+        panel.className = 'writing-assist has-suggestions writing-review-card';
+        panel.innerHTML = writingReviewMarkup({
+          engine: reviewEngine,
+          items: suggestions.map(item => ({ label: item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description', corrected: item.corrected, changes: item.changes }))
+        });
+        $('[data-review-apply]', panel).onclick = () => {
           suggestions.forEach(item => { item.field.value = item.corrected; item.field.dispatchEvent(new Event('input', { bubbles: true })); if (item.field.tagName === 'TEXTAREA') autoGrow(item.field); });
           lastChecked = signature();
           panel.className = 'writing-assist is-clear';
           panel.innerHTML = `${icon('check-circle', 16)} <span>Improvements applied. You can still edit anything before publishing.</span>`;
           setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 2600);
         };
-        $('[data-writing-dismiss]', panel).onclick = () => { dismissed = sig; panel.hidden = true; };
+        $('[data-review-dismiss]', panel).onclick = () => { dismissed = sig; panel.hidden = true; };
       } catch (err) {
         if (ownRequest !== requestNo) return;
         panel.className = 'writing-assist is-error';
@@ -436,6 +460,16 @@
   });
 
   /* Fast writing fields (chat and comments): improve only when the user asks. */
+  const quickReviewPanel = container => {
+    if (container._manbarAiReview?.isConnected) return container._manbarAiReview;
+    const panel = document.createElement('div');
+    panel.className = 'writing-assist writing-review-card is-quick';
+    panel.dataset.aiQuickReview = 'true';
+    panel.setAttribute('aria-live', 'polite');
+    container.insertAdjacentElement('afterend', panel);
+    container._manbarAiReview = panel;
+    return panel;
+  };
   document.addEventListener('click', async event => {
       const button = event.target.closest('[data-ai-quick]');
       if (!button) return;
@@ -453,15 +487,32 @@
       try {
         const result = await api('/api/ai/assist', { text: original, kind: field.dataset.aiWriting || 'message', tone, context, local_only: 0 });
         const corrected = result.fix?.corrected || original;
+        if (field.value.trim() !== original) {
+          toast('Your text changed while MANBAR AI was reviewing it. Try again when ready.', 'error');
+          return;
+        }
         if (corrected === original) {
           toast('Your writing already looks clear.');
         } else {
-          field.value = corrected;
-          field.dispatchEvent(new Event('input', { bubbles: true }));
-          if (field.tagName === 'TEXTAREA') autoGrow(field);
-          toast('Writing improved — review it before sending.');
+          const panel = quickReviewPanel(container);
+          panel.hidden = false;
+          panel.className = 'writing-assist writing-review-card is-quick';
+          panel.innerHTML = writingReviewMarkup({
+            engine: result.fix?.engine || 'rules',
+            applyLabel: 'Apply correction',
+            items: [{ label: field.dataset.aiWriting === 'title' ? 'Title' : 'Message', corrected, changes: result.fix?.changes || [] }]
+          });
+          $('[data-review-apply]', panel).onclick = () => {
+            field.value = corrected;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            if (field.tagName === 'TEXTAREA') autoGrow(field);
+            panel.className = 'writing-assist is-clear is-quick';
+            panel.innerHTML = `${icon('check-circle', 16)} <span>Correction applied. Review it once more before sending.</span>`;
+            field.focus();
+            setTimeout(() => { if (panel.classList.contains('is-clear')) panel.remove(); }, 2600);
+          };
+          $('[data-review-dismiss]', panel).onclick = () => { panel.remove(); field.focus(); };
         }
-        field.focus();
       } catch (err) {
         toast(err.message || 'Writing check failed. Try again.', 'error');
       } finally {
@@ -491,20 +542,24 @@
     $('#aiFix').addEventListener('click', async () => {
       const panel = $('#aiPanel'), txt = body.value.trim(), ttl = title.value.trim();
       if ((txt + ttl).length < 6) { toast('Write a few words first, then ask the assistant.', 'error'); return; }
-      panel.hidden = false; panel.innerHTML = `<h4>${icon('sparkles', 18)} Thinking…</h4><div class="skeleton" style="height:60px"></div>`;
+      panel.hidden = false; panel.className = 'ai-panel is-loading'; panel.innerHTML = `<h4>${icon('sparkles', 18)} Thinking…</h4><div class="skeleton" style="height:60px"></div>`;
       try {
-        const [rb, rt] = await Promise.all([api('/api/ai/assist', { text: txt || ttl, kind: 'body' }), ttl ? api('/api/ai/assist', { text: ttl, kind: 'title' }) : Promise.resolve(null)]);
+        const [rb, rt] = await Promise.all([api('/api/ai/assist', { text: txt || ttl, kind: 'body', context: 'post composer' }), ttl ? api('/api/ai/assist', { text: ttl, kind: 'title', context: 'post composer' }) : Promise.resolve(null)]);
         const fixB = rb.fix, newBody = txt ? fixB.corrected : null, newTitle = rt ? rt.fix.corrected.replace(/\.$/, '') : null;
         const changed = (newBody && newBody !== txt) || (newTitle && newTitle !== ttl);
         const rt1 = rb.route, p = rt1.primary, cur = $('input[name=type]:checked', form).value;
-        let html = `<h4>${icon('sparkles', 18)} MANBAR Assistant <span class="chip sm outline">${['openai', 'claude'].includes(fixB.engine) ? 'AI' : 'smart rules'}</span></h4>`;
+        const reviewItems = [];
+        if (newTitle && newTitle !== ttl) reviewItems.push({ label: 'Title', corrected: newTitle, changes: rt?.fix?.changes || [] });
+        if (newBody && newBody !== txt) reviewItems.push({ label: 'Description', corrected: newBody, changes: fixB.changes || [] });
+        const reviewEngine = [rt?.fix?.engine, fixB.engine].find(engine => engine && engine !== 'rules') || fixB.engine;
+        let html = '';
         if (changed) {
-          html += `<div class="small muted">I polished your writing:</div>`;
-          if (newTitle && newTitle !== ttl) html += `<div class="ai-diff"><b>Title:</b> ${esc(newTitle)}</div>`;
-          if (newBody && newBody !== txt) html += `<div class="ai-diff">${esc(newBody)}</div>`;
-          html += `<div>${(fixB.changes || []).filter(c => c.from !== '…' && c.from !== '').slice(0, 8).map(c => `<span class="ai-change"><s>${esc(c.from)}</s> → <b>${esc(c.to)}</b></span>`).join('')}</div>
-            <div class="row" style="margin:10px 0 4px"><button type="button" class="btn btn-primary btn-sm" id="aiApply">${icon('check', 15)} Apply corrections</button></div>`;
-        } else html += `<div class="small row">${icon('check-circle', 16)} Your writing looks clean — nothing to correct.</div>`;
+          panel.className = 'ai-panel writing-review-card';
+          html += writingReviewMarkup({ items: reviewItems, engine: reviewEngine, applyLabel: 'Apply corrections' });
+        } else {
+          panel.className = 'ai-panel is-clear';
+          html += `<div class="small row">${icon('check-circle', 16)} Your writing looks clean — nothing to correct.</div>`;
+        }
         const isType = ['idea', 'team', 'question', 'resource', 'achievement', 'event', 'announcement', 'teaching'].includes(p.key);
         html += `<div class="ai-route"><span class="badge-ico tone-green" style="width:40px;height:40px;margin:0;border-radius:13px">${icon('compass', 20)}</span><div class="grow small"><b>Best place: ${esc(p.label)}</b><br><span class="muted">${esc(p.reason)}</span></div>`;
         if (isType && p.key !== cur && $(`input[name=type][value=${p.key}]`, form)) html += `<button type="button" class="btn btn-sm" id="aiSwitch">Use “${esc(p.label)}”</button>`;
@@ -513,7 +568,8 @@
         html += `</div>`;
         if (rt1.tags?.length) html += `<div class="row wrap" style="margin-top:10px"><span class="small muted">Suggested tags:</span>${rt1.tags.map(t => `<button type="button" class="chip outline sm" data-addtag="${esc(t)}">+ #${esc(t)}</button>`).join('')}</div>`;
         panel.innerHTML = html;
-        $('#aiApply', panel)?.addEventListener('click', () => { if (newBody) body.value = newBody; if (newTitle) title.value = newTitle; toast('Corrections applied'); panel.hidden = true; });
+        $('[data-review-apply]', panel)?.addEventListener('click', () => { if (newBody) body.value = newBody; if (newTitle) title.value = newTitle; toast('Corrections applied'); panel.hidden = true; });
+        $('[data-review-dismiss]', panel)?.addEventListener('click', () => { panel.hidden = true; });
         $('#aiSwitch', panel)?.addEventListener('click', () => { const r = $(`input[name=type][value=${p.key}]`, form); r.checked = true; r.dispatchEvent(new Event('change')); toast('Post type changed to ' + p.label); });
         $('#aiGo', panel)?.addEventListener('click', () => { sessionStorage.setItem('manbarDraft', JSON.stringify({ title: title.value, body: newBody || txt })); location.href = p.url; });
         $$('[data-addtag]', panel).forEach(b => b.onclick = () => { tags.add(b.dataset.addtag); b.remove(); });
@@ -568,7 +624,7 @@
           h += `<div class="ai-route guide-route"><span class="guide-result-icon">${icon('compass', 17)}</span><div class="grow small"><b>${esc(p.label)}</b><br><span class="muted">${esc(p.hint)}</span></div><button class="btn btn-primary btn-sm" type="button" data-go="${esc(p.url)}">Take me there</button></div>`;
           if (r.route.alternatives.length) h += `<div class="sugg"><span class="xs muted">Other useful places:</span>${r.route.alternatives.map(a => `<button class="chip outline sm" type="button" data-go="${esc(a.url)}">${esc(a.label)}</button>`).join('')}</div>`;
         }
-        if (r.corrected && r.corrected !== text) h += `<div class="guide-correction"><span>${icon('edit', 14)} Polished wording</span><p>${esc(r.corrected)}</p>${r.changes?.length ? `<div class="guide-change-reasons">${[...new Set(r.changes.map(change => change.why).filter(Boolean))].slice(0, 4).map(why => `<span>${esc(why)}</span>`).join('')}</div>` : ''}<button class="btn btn-ghost btn-sm" type="button" data-use-correction>Use this in the assistant</button></div>`;
+        if (r.corrected && r.corrected !== text) h += `<div class="guide-correction"><span>${icon('edit', 14)} Polished wording</span><p>${esc(r.corrected)}</p>${writingChangesMarkup(r.changes)}<button class="btn btn-ghost btn-sm" type="button" data-use-correction>Use this in the assistant</button></div>`;
         if (r.suggestions?.length) h += `<div class="sugg guide-followups">${r.suggestions.map(s => `<button class="chip outline sm" type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
         wait.classList.remove('is-thinking');
         wait.innerHTML = h;
