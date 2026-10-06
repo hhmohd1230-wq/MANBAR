@@ -255,6 +255,8 @@ function api_ai_assist(): void
     ai_request_guard();
     $action = (string) ($_POST['action'] ?? 'correct');
     $localOnly = (string) ($_POST['local_only'] ?? '') === '1';
+    $tone = in_array((string) ($_POST['tone'] ?? ''), AI_TONES, true) ? (string) $_POST['tone'] : 'natural';
+    $context = trim(mb_substr((string) ($_POST['context'] ?? ''), 0, 180));
     if ($action === 'draft') {
         $title = trim((string) ($_POST['title'] ?? ''));
         $body = trim((string) ($_POST['body'] ?? ''));
@@ -263,15 +265,16 @@ function api_ai_assist(): void
         $meta = [
             'category' => (string) ($_POST['category'] ?? ''),
             'level' => (string) ($_POST['level'] ?? ''),
+            'tone' => $tone,
         ];
-        $draft = !$localOnly ? (ai_gemini_form_draft($context, $title, $body, $meta) ?? ai_groq_form_draft($context, $title, $body, $meta)) : null;
+        $draft = !$localOnly ? (ai_gemini_form_draft($context, $title, $body, $meta, $u) ?? ai_groq_form_draft($context, $title, $body, $meta, $u)) : null;
         $draft ??= ai_form_draft($context, $title, $body, $meta);
         json_out(['ok' => true, 'draft' => $draft]);
     }
     $text = trim((string) ($_POST['text'] ?? ''));
     if (mb_strlen($text) < 4) json_out(['ok' => false, 'error' => 'Write a few words first.'], 422);
     $kind = in_array($_POST['kind'] ?? '', ['title', 'body', 'message'], true) ? (string) $_POST['kind'] : 'body';
-    $r = ai_assist($text, $u, 'assist', $kind, !$localOnly);
+    $r = ai_assist($text, $u, 'assist', $kind, !$localOnly, $tone, $context);
     json_out(['ok' => true] + $r);
 }
 function api_ai_guide(): void
@@ -280,7 +283,8 @@ function api_ai_guide(): void
     ai_request_guard();
     $text = trim((string) ($_POST['text'] ?? ''));
     if (mb_strlen($text) < 3) json_out(['ok' => false, 'error' => 'Tell me what you want to do.'], 422);
-    $r = ai_guide_assist($text, $u);
+    $pageContext = trim(mb_substr((string) ($_POST['page_context'] ?? ''), 0, 180));
+    $r = ai_guide_assist($text, $u, true, $pageContext);
     json_out(['ok' => true, 'reply' => $r['reply'], 'intent' => $r['intent'], 'route' => $r['route'], 'corrected' => $r['fix']['corrected'],
         'changes' => $r['fix']['changes'], 'engine' => $r['fix']['engine'], 'results' => $r['results'],
         'suggestions' => $r['suggestions'], 'capabilities' => $r['capabilities']]);
