@@ -5,7 +5,7 @@
  *  2) route_idea(): reads what the student describes and suggests the right place.
  *  3) ai_search_catalog(): searches MANBAR's own projects, people, mentors,
  *     courses and services and ranks them against the request and user profile.
- * Works offline with built-in rules. If ANTHROPIC_API_KEY is configured, Claude is used first and the rules are the fallback.
+ * Works offline with built-in rules. If configured, OpenAI is used first, then Claude, with the rules as the fallback.
  */
 
 const AI_TARGETS = [
@@ -69,6 +69,7 @@ const AI_TYPOS = [
     'knowlegeable' => 'knowledgeable', 'managment' => 'management', 'messege' => 'message', 'oppurtunities' => 'opportunities', 'peaple' => 'people',
     'preferrably' => 'preferably', 'proffesional' => 'professional', 'requirment' => 'requirement', 'requirments' => 'requirements',
     'reserach' => 'research', 'responsability' => 'responsibility', 'shedule' => 'schedule', 'similiar' => 'similar', 'skils' => 'skills', 'grammer' => 'grammar',
+    'impove' => 'improve', 'imrpove' => 'improve', 'lke' => 'like', 'vocabulity' => 'vocabulary', 'vocabluary' => 'vocabulary',
     'softwere' => 'software', 'specfic' => 'specific', 'studnets' => 'students', 'suport' => 'support', 'teammatees' => 'teammates', 'usefull' => 'useful',
 ];
 
@@ -107,6 +108,8 @@ const AI_GRAMMAR_PATTERNS = [
     '/\bmake an? math project\b/i' => 'create a math project',
     '/\bmake an? project\b/i' => 'create a project',
     '/\b(project|course|service|idea) and I want\b/i' => '$1, and I want',
+    '/\bcapstone thing\b/i' => 'capstone project',
+    '/\band I (?:would )?like,?\s+to make it way better\b/i' => 'and make it significantly better',
     '/\blooking (?:a|an) teammate\b/i' => 'looking for a teammate',
     '/\blooking teammates\b/i' => 'looking for teammates',
     '/\blooking (?:a|an) mentor\b/i' => 'looking for a mentor',
@@ -499,7 +502,66 @@ function ai_guide_suggestions(string $text, array $results): array
     return ['Find projects that match my skills', 'Find a mentor', 'Show learning courses'];
 }
 
-/* ============ Optional: Claude ============ */
+/* ============ Optional language-model providers ============ */
+function ai_openai(string $text, string $mode, ?array $user, string $style = 'body'): ?array
+{
+    $key = cfg('openai_api_key');
+    if (!$key || !function_exists('curl_init')) return null;
+
+    $targets = [];
+    foreach (AI_TARGETS as $k => $v) $targets[] = "$k = {$v['label']}: {$v['hint']}";
+    $styleRule = $style === 'title'
+        ? 'The text is a title: keep it concise and do not add a final period.'
+        : 'Keep the result concise, natural and suitable for a university community.';
+    $instructions = "You are MANBAR's expert English writing assistant. Return only the requested structured result. "
+        . "Rewrite the user's text as fluent, natural writing in the same language. Infer obvious misspellings from context, fix grammar and punctuation, remove awkward repetition, and choose clearer vocabulary. "
+        . "Preserve the user's intended meaning and tone. Never invent facts, promises, prices, deadlines, qualifications or project details. {$styleRule}\n"
+        . "Choose the most suitable MANBAR target and suggest up to five short lower-case tags. Targets:\n" . implode("\n", $targets);
+    $schema = [
+        'type' => 'object',
+        'properties' => [
+            'corrected' => ['type' => 'string', 'description' => 'The polished text only.'],
+            'target' => ['type' => 'string', 'enum' => array_keys(AI_TARGETS)],
+            'reason' => ['type' => 'string', 'description' => 'One short, friendly routing reason.'],
+            'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
+        ],
+        'required' => ['corrected', 'target', 'reason', 'tags'],
+        'additionalProperties' => false,
+    ];
+    $payload = [
+        'model' => cfg('openai_model'),
+        'instructions' => $instructions,
+        'input' => $text,
+        'max_output_tokens' => 900,
+        'store' => false,
+        'text' => ['format' => ['type' => 'json_schema', 'name' => 'manbar_writing_review', 'strict' => true, 'schema' => $schema]],
+    ];
+    $ch = curl_init('https://api.openai.com/v1/responses');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 25, CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ['content-type: application/json', 'authorization: Bearer ' . $key],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    $res = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if (!$res || $status < 200 || $status >= 300) return null;
+
+    $json = json_decode($res, true);
+    $outputText = (string) ($json['output_text'] ?? '');
+    if ($outputText === '') {
+        foreach (($json['output'] ?? []) as $item) {
+            foreach (($item['content'] ?? []) as $content) {
+                if (($content['type'] ?? '') === 'output_text' && isset($content['text'])) $outputText .= (string) $content['text'];
+            }
+        }
+    }
+    $out = $outputText !== '' ? json_decode($outputText, true) : null;
+    if (!is_array($out) || trim((string) ($out['corrected'] ?? '')) === '') return null;
+    $out['_engine'] = 'openai';
+    return $out;
+}
+
 function ai_llm(string $text, string $mode, ?array $user, string $style = 'body'): ?array
 {
     $key = cfg('anthropic_api_key');
@@ -524,7 +586,9 @@ function ai_llm(string $text, string $mode, ?array $user, string $style = 'body'
     $txt = $j['content'][0]['text'] ?? '';
     if (!preg_match('/\{.*\}/s', $txt, $m)) return null;
     $out = json_decode($m[0], true);
-    return is_array($out) && !empty($out['corrected']) ? $out : null;
+    if (!is_array($out) || empty($out['corrected'])) return null;
+    $out['_engine'] = 'claude';
+    return $out;
 }
 
 function ai_assist(string $text, ?array $user, string $mode = 'both', string $style = 'body', bool $allowLlm = true): array
@@ -532,8 +596,9 @@ function ai_assist(string $text, ?array $user, string $mode = 'both', string $st
     $text = mb_substr($text, 0, 4000);
     $fix = fix_writing($text, $style);
     $route = route_idea($text, $user);
-    if ($allowLlm && ($llm = ai_llm($text, $mode, $user, $style))) {
-        $fix = ['corrected' => (string) $llm['corrected'], 'changes' => [['from' => '…', 'to' => '…', 'why' => 'Improved by AI']], 'engine' => 'claude'];
+    $llm = $allowLlm ? (ai_openai($text, $mode, $user, $style) ?? ai_llm($text, $mode, $user, $style)) : null;
+    if ($llm) {
+        $fix = ['corrected' => (string) $llm['corrected'], 'changes' => [['from' => '…', 'to' => '…', 'why' => 'Improved by AI']], 'engine' => (string) ($llm['_engine'] ?? 'ai')];
         $k = $llm['target'] ?? '';
         if (isset(AI_TARGETS[$k])) {
             $route['primary'] = array_merge(['key' => $k], AI_TARGETS[$k], ['reason' => (string) ($llm['reason'] ?? ''), 'url' => url(AI_TARGETS[$k]['url'])]);

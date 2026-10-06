@@ -339,7 +339,7 @@
           return;
         }
         const count = suggestions.reduce((n, item) => n + Math.max(1, item.changes.length), 0);
-        const usedLanguageAI = checked.some(result => result?.fix?.engine === 'claude');
+        const usedLanguageAI = checked.some(result => ['openai', 'claude'].includes(result?.fix?.engine));
         panel.className = 'writing-assist has-suggestions';
         panel.innerHTML = `<div class="writing-assist-head"><span>${icon('sparkles', 17)} <b>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</b></span><span class="writing-assist-local">${usedLanguageAI ? 'AI language review' : 'Local writing review'}</span></div>
           <div class="writing-assist-previews">${suggestions.map(item => `<div><span>${item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description'}</span><p>${esc(item.corrected)}</p></div>`).join('')}</div>
@@ -491,7 +491,7 @@
         const fixB = rb.fix, newBody = txt ? fixB.corrected : null, newTitle = rt ? rt.fix.corrected.replace(/\.$/, '') : null;
         const changed = (newBody && newBody !== txt) || (newTitle && newTitle !== ttl);
         const rt1 = rb.route, p = rt1.primary, cur = $('input[name=type]:checked', form).value;
-        let html = `<h4>${icon('sparkles', 18)} MANBAR Assistant <span class="chip sm outline">${fixB.engine === 'claude' ? 'AI' : 'smart rules'}</span></h4>`;
+        let html = `<h4>${icon('sparkles', 18)} MANBAR Assistant <span class="chip sm outline">${['openai', 'claude'].includes(fixB.engine) ? 'AI' : 'smart rules'}</span></h4>`;
         if (changed) {
           html += `<div class="small muted">I polished your writing:</div>`;
           if (newTitle && newTitle !== ttl) html += `<div class="ai-diff"><b>Title:</b> ${esc(newTitle)}</div>`;

@@ -52,7 +52,9 @@ $config = [
     // These emails become administrators on first login.
     'admin_emails' => ['202020280@aau.ac.ae'],
 
-    // Optional: real AI (Claude API). Leave empty to use the built-in rule-based assistant.
+    // Optional: real language AI. OpenAI is tried first, then Claude, then the local rules.
+    'openai_api_key'    => $env('OPENAI_API_KEY', ''),
+    'openai_model'      => $env('OPENAI_MODEL', 'gpt-6.1-sol'),
     'anthropic_api_key' => $env('ANTHROPIC_API_KEY', ''),
     'anthropic_model'   => $env('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001'),
 
