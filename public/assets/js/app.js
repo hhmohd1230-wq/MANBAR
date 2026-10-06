@@ -299,6 +299,70 @@
     addEventListener('pagehide', () => { if (profileCoverObjectUrl) URL.revokeObjectURL(profileCoverObjectUrl); }, { once: true });
   }
 
+  /* ---------- automatic local writing coach ---------- */
+  $$('[data-ai-writing-form]').forEach(form => {
+    const fields = $$('[data-ai-writing]', form);
+    const panel = $('[data-writing-assist]', form);
+    if (!fields.length || !panel) return;
+    let timer = 0, requestNo = 0, lastChecked = '', dismissed = '';
+
+    const signature = () => fields.map(field => field.value.trim()).join('\u241e');
+    const checkWriting = async () => {
+      const sig = signature();
+      if (sig === lastChecked || sig === dismissed || sig.replace(/\u241e/g, '').length < 8) return;
+      lastChecked = sig;
+      const ownRequest = ++requestNo;
+      panel.hidden = false;
+      panel.className = 'writing-assist is-checking';
+      panel.innerHTML = `${icon('sparkles', 16)} <span>Checking spelling and grammar locally…</span>`;
+      try {
+        const checked = await Promise.all(fields.map(field => {
+          const text = field.value.trim();
+          return text.length >= 3
+            ? api('/api/ai/assist', { text, kind: field.dataset.aiWriting, local_only: 1 })
+            : Promise.resolve(null);
+        }));
+        if (ownRequest !== requestNo || signature() !== sig) return;
+        const suggestions = checked.map((result, index) => result && result.fix.corrected !== fields[index].value.trim()
+          ? { field: fields[index], original: fields[index].value.trim(), corrected: result.fix.corrected, changes: result.fix.changes || [] }
+          : null).filter(Boolean);
+        if (!suggestions.length) {
+          panel.className = 'writing-assist is-clear';
+          panel.innerHTML = `${icon('check-circle', 16)} <span>Writing check complete — everything looks clear.</span>`;
+          setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 2400);
+          return;
+        }
+        const count = suggestions.reduce((n, item) => n + Math.max(1, item.changes.length), 0);
+        panel.className = 'writing-assist has-suggestions';
+        panel.innerHTML = `<div class="writing-assist-head"><span>${icon('sparkles', 17)} <b>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</b></span><span class="writing-assist-local">Works without an API</span></div>
+          <div class="writing-assist-previews">${suggestions.map(item => `<div><span>${item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description'}</span><p>${esc(item.corrected)}</p></div>`).join('')}</div>
+          <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-writing-apply>${icon('check', 14)} Apply improvements</button><button class="btn btn-ghost btn-sm" type="button" data-writing-dismiss>Keep my wording</button></div>`;
+        $('[data-writing-apply]', panel).onclick = () => {
+          suggestions.forEach(item => { item.field.value = item.corrected; item.field.dispatchEvent(new Event('input', { bubbles: true })); if (item.field.tagName === 'TEXTAREA') autoGrow(item.field); });
+          lastChecked = signature();
+          panel.className = 'writing-assist is-clear';
+          panel.innerHTML = `${icon('check-circle', 16)} <span>Improvements applied. You can still edit anything before publishing.</span>`;
+          setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 2600);
+        };
+        $('[data-writing-dismiss]', panel).onclick = () => { dismissed = sig; panel.hidden = true; };
+      } catch (err) {
+        if (ownRequest !== requestNo) return;
+        panel.className = 'writing-assist is-error';
+        panel.innerHTML = `${icon('alert', 16)} <span>${esc(err.message)} Your writing was not changed.</span>`;
+      }
+    };
+    fields.forEach(field => field.addEventListener('input', () => {
+      clearTimeout(timer);
+      panel.hidden = true;
+      timer = setTimeout(checkWriting, 1800);
+    }));
+    form.addEventListener('focusout', event => {
+      if (!event.target.matches('[data-ai-writing]')) return;
+      clearTimeout(timer);
+      timer = setTimeout(checkWriting, 350);
+    });
+  });
+
   /* ---------- composer + AI assist ---------- */
   const comp = $('#composer');
   if (comp) {
@@ -321,7 +385,7 @@
       if ((txt + ttl).length < 6) { toast('Write a few words first, then ask the assistant.', 'error'); return; }
       panel.hidden = false; panel.innerHTML = `<h4>${icon('sparkles', 18)} Thinking…</h4><div class="skeleton" style="height:60px"></div>`;
       try {
-        const [rb, rt] = await Promise.all([api('/api/ai/assist', { text: txt || ttl }), ttl ? api('/api/ai/assist', { text: ttl }) : Promise.resolve(null)]);
+        const [rb, rt] = await Promise.all([api('/api/ai/assist', { text: txt || ttl, kind: 'body' }), ttl ? api('/api/ai/assist', { text: ttl, kind: 'title' }) : Promise.resolve(null)]);
         const fixB = rb.fix, newBody = txt ? fixB.corrected : null, newTitle = rt ? rt.fix.corrected.replace(/\.$/, '') : null;
         const changed = (newBody && newBody !== txt) || (newTitle && newTitle !== ttl);
         const rt1 = rb.route, p = rt1.primary, cur = $('input[name=type]:checked', form).value;
@@ -332,7 +396,7 @@
           if (newBody && newBody !== txt) html += `<div class="ai-diff">${esc(newBody)}</div>`;
           html += `<div>${(fixB.changes || []).filter(c => c.from !== '…' && c.from !== '').slice(0, 8).map(c => `<span class="ai-change"><s>${esc(c.from)}</s> → <b>${esc(c.to)}</b></span>`).join('')}</div>
             <div class="row" style="margin:10px 0 4px"><button type="button" class="btn btn-primary btn-sm" id="aiApply">${icon('check', 15)} Apply corrections</button></div>`;
-        } else html += `<div class="small">✅ Your writing looks clean — nothing to correct.</div>`;
+        } else html += `<div class="small row">${icon('check-circle', 16)} Your writing looks clean — nothing to correct.</div>`;
         const isType = ['idea', 'team', 'question', 'resource', 'achievement', 'event', 'announcement', 'teaching'].includes(p.key);
         html += `<div class="ai-route"><span class="badge-ico tone-green" style="width:40px;height:40px;margin:0;border-radius:13px">${icon('compass', 20)}</span><div class="grow small"><b>Best place: ${esc(p.label)}</b><br><span class="muted">${esc(p.reason)}</span></div>`;
         if (isType && p.key !== cur && $(`input[name=type][value=${p.key}]`, form)) html += `<button type="button" class="btn btn-sm" id="aiSwitch">Use “${esc(p.label)}”</button>`;
@@ -367,29 +431,53 @@
   /* ---------- AI guide widget ---------- */
   const guide = $('#guide');
   if (guide) {
-    const msgs = $('#guideMsgs'), inp = $('#guideIn');
+    const msgs = $('#guideMsgs'), inp = $('#guideIn'), form = $('#guideForm'), sendButton = $('button[type=submit]', form);
+    let sending = false;
     const toggle = open => { guide.classList.toggle('open', open); $('#guideFab').setAttribute('aria-expanded', String(open)); if (open) inp.focus(); };
     $('#guideFab').onclick = () => toggle(!guide.classList.contains('open'));
     $('#guideClose').onclick = () => toggle(false);
     $$('[data-open-guide]').forEach(btn => btn.addEventListener('click', () => toggle(true)));
     const add = (cls, html) => { const d = document.createElement('div'); d.className = 'gm ' + cls; d.innerHTML = html; msgs.append(d); msgs.scrollTop = msgs.scrollHeight; return d; };
     const send = async text => {
+      if (sending) return;
+      sending = true;
+      sendButton.disabled = true;
       add('me', esc(text));
-      const wait = add('bot', '…');
+      const wait = add('bot is-thinking', `<span class="guide-thinking">${icon('sparkles', 15)} Searching MANBAR and checking your writing…</span>`);
       try {
         const r = await api('/api/ai/guide', { text });
         const p = r.route.primary;
         let h = esc(r.reply).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-        h += `<div class="ai-route" style="margin-top:10px"><div class="grow small"><b>${esc(p.label)}</b><br><span class="muted">${esc(p.hint)}</span></div><button class="btn btn-primary btn-sm" data-go="${esc(p.url)}">Take me there</button></div>`;
-        if (r.route.alternatives.length) h += `<div class="sugg"><span class="xs muted">Or try:</span>${r.route.alternatives.map(a => `<button class="chip outline sm" data-go="${esc(a.url)}">${esc(a.label)}</button>`).join('')}</div>`;
-        if (r.corrected && r.corrected !== text) h += `<div class="xs muted" style="margin-top:8px">Polished wording: “${esc(r.corrected)}”</div>`;
+        if (r.results?.length) {
+          const typeIcon = { project: 'rocket', person: 'user', mentor: 'compass', course: 'book', service: 'store' };
+          h += `<div class="guide-result-label">${icon('search', 14)} Live MANBAR results</div><div class="guide-results">${r.results.map((item, index) => `<article class="guide-result ${index === 0 ? 'is-best' : ''}">
+            <span class="guide-result-icon">${icon(typeIcon[item.type] || 'search', 16)}</span><div class="grow"><div class="guide-result-title">${esc(item.title)}${index === 0 ? '<span>Best match</span>' : ''}</div><p>${esc(item.description)}</p><small>${esc(item.meta)}</small><em>${esc(item.reason)}</em></div><button class="btn btn-sm" type="button" data-open-result="${esc(item.url)}" aria-label="Open ${esc(item.title)}">Open</button>
+          </article>`).join('')}</div>`;
+        } else if (r.intent === 'route') {
+          h += `<div class="ai-route guide-route"><span class="guide-result-icon">${icon('compass', 17)}</span><div class="grow small"><b>${esc(p.label)}</b><br><span class="muted">${esc(p.hint)}</span></div><button class="btn btn-primary btn-sm" type="button" data-go="${esc(p.url)}">Take me there</button></div>`;
+          if (r.route.alternatives.length) h += `<div class="sugg"><span class="xs muted">Other useful places:</span>${r.route.alternatives.map(a => `<button class="chip outline sm" type="button" data-go="${esc(a.url)}">${esc(a.label)}</button>`).join('')}</div>`;
+        }
+        if (r.corrected && r.corrected !== text) h += `<div class="guide-correction"><span>${icon('edit', 14)} Polished wording</span><p>${esc(r.corrected)}</p><button class="btn btn-ghost btn-sm" type="button" data-use-correction>Use this in the assistant</button></div>`;
+        if (r.suggestions?.length) h += `<div class="sugg guide-followups">${r.suggestions.map(s => `<button class="chip outline sm" type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
+        wait.classList.remove('is-thinking');
         wait.innerHTML = h;
         wait.dataset.text = r.corrected || text;
-      } catch (err) { wait.innerHTML = esc(err.message); }
+      } catch (err) {
+        wait.classList.remove('is-thinking');
+        wait.innerHTML = `${icon('alert', 16)} ${esc(err.message)} <button class="btn btn-ghost btn-sm" type="button" data-sugg="${esc(text)}">Try again</button>`;
+      } finally {
+        sending = false;
+        sendButton.disabled = false;
+        msgs.scrollTop = msgs.scrollHeight;
+      }
     };
-    $('#guideForm').addEventListener('submit', e => { e.preventDefault(); const v = inp.value.trim(); if (!v) return; inp.value = ''; autoGrow(inp); send(v); });
+    form.addEventListener('submit', e => { e.preventDefault(); const v = inp.value.trim(); if (!v || sending) return; inp.value = ''; autoGrow(inp); send(v); });
     msgs.addEventListener('click', e => {
       const s = e.target.closest('[data-sugg]'); if (s) { send(s.dataset.sugg); return; }
+      const correction = e.target.closest('[data-use-correction]');
+      if (correction) { inp.value = correction.closest('.gm')?.dataset.text || ''; autoGrow(inp); inp.focus(); return; }
+      const result = e.target.closest('[data-open-result]');
+      if (result) { location.href = result.dataset.openResult; return; }
       const g = e.target.closest('[data-go]');
       if (g) { const m = g.closest('.gm'); sessionStorage.setItem('manbarDraft', JSON.stringify({ body: m?.dataset.text || '' })); location.href = g.dataset.go; }
     });

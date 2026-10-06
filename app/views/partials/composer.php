@@ -9,7 +9,7 @@ $open = !empty($compose);
     <?= avatar($u, 44) ?><div class="fake">Share an idea, ask a question or find teammates, <?= e(explode(' ', $u['full_name'])[0]) ?>…</div>
     <button class="btn btn-primary btn-sm" type="button"><?= icon('plus', 16) ?> Post</button>
   </div>
-  <form id="composerForm" method="post" action="<?= e(url('post/create')) ?>" enctype="multipart/form-data" <?= $open ? '' : 'hidden' ?>>
+  <form id="composerForm" method="post" action="<?= e(url('post/create')) ?>" enctype="multipart/form-data" data-ai-writing-form data-ai-context="post" <?= $open ? '' : 'hidden' ?>>
     <?= csrf_field() ?>
     <div class="type-pick">
       <?php foreach ($types as $k => $t): ?><label class="tone-<?= e($t['tone']) ?>"><input type="radio" name="type" value="<?= e($k) ?>" data-ph="<?= e($t['ph']) ?>" <?= $k === $sel ? 'checked' : '' ?>><span><?= icon($t['icon'], 16) ?> <?= e($t['label']) ?></span></label><?php endforeach ?>
@@ -17,11 +17,12 @@ $open = !empty($compose);
     <div class="composer-head">
       <?= avatar($u, 44) ?>
       <div class="grow">
-        <input class="title-in" name="title" id="cTitle" maxlength="200" placeholder="Give it a clear title" value="<?= e(old('title')) ?>" required>
-        <textarea class="body-in" name="body" id="cBody" maxlength="5000" placeholder="<?= e($types[$sel]['ph']) ?>" required><?= e(old('body')) ?></textarea>
+        <input class="title-in" name="title" id="cTitle" data-ai-writing="title" maxlength="200" placeholder="Give it a clear title" value="<?= e(old('title')) ?>" required>
+        <textarea class="body-in" name="body" id="cBody" data-ai-writing="body" maxlength="5000" placeholder="<?= e($types[$sel]['ph']) ?>" required><?= e(old('body')) ?></textarea>
         <div id="imgPrev"></div>
       </div>
     </div>
+    <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
     <div class="ai-panel" id="aiPanel" hidden></div>
     <div class="composer-foot">
       <label class="btn btn-ghost btn-sm" style="cursor:pointer"><?= icon('image', 16) ?> Photo<input type="file" name="image" id="cImage" accept="image/*" hidden></label>

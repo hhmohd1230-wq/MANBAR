@@ -18,7 +18,7 @@ Capstone project, College of Engineering, Al Ain University (Yaman AlNasri, Tami
 | **Mentorship** | Mentor directory · requests · scheduling · feedback |
 | **Achievements** | Points, 13 badges, 6 levels, leaderboard |
 | **Messages & notifications** | Direct messages, live badges |
-| **AI assistant** | Auto-corrects spelling/grammar before posting and **routes your idea to the right page** (works offline; optional Claude API) |
+| **MANBAR Assistant** | Suggests spelling/grammar improvements for titles and descriptions, routes ideas to the right page, and searches/ranks live projects, people, mentors, courses and services against the student’s request and profile (works locally; optional Claude API) |
 | **Admin dashboard** | Analytics charts, users (roles, suspend, verify, CSV export), **roster CSV import**, moderation & reports, content control, **universities** (switch ADU / UAEU on later), settings, audit log |
 
 Roles: `student`, `teacher` (extra tools: announcements, teaching offers, courses, mentor profile) and `admin`.
@@ -73,9 +73,9 @@ MANBAR verifies the Google ID token on the server (audience, issuer, expiry, ver
 - Admin → **Student roster**: import each university's list as CSV (`student_id, full_name, major, faculty, year_level`).
 - Going fully public later = allow any verified Google account; the code path is `university_for_email()` in `app/auth.php`.
 
-## 4 · Optional: real AI (Claude)
+## 4 · Optional: enhanced language AI (Claude)
 
-The assistant works without any key. To let Claude do the correcting and routing, set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) — if the call fails it falls back to the built-in rules automatically.
+The assistant’s writing checks, idea routing and MANBAR catalogue search all work without any key. Search is performed by MANBAR’s PHP backend against visible records; database credentials are never sent to a model. To add broader free-form language understanding later, set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`). If that call is unavailable, the assistant automatically keeps using the local engine.
 
 ## 5 · Publish on GitHub / move to a real server
 
