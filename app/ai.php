@@ -51,7 +51,7 @@ const AI_TYPOS = [
     'reccomend' => 'recommend', 'recomend' => 'recommend', 'refered' => 'referred', 'relevent' => 'relevant', 'sucess' => 'success', 'succesful' => 'successful',
     'suprise' => 'surprise', 'tecnology' => 'technology', 'techonology' => 'technology', 'thru' => 'through', 'truely' => 'truly', 'unfortunatly' => 'unfortunately',
     'wierd' => 'weird', 'writting' => 'writing', 'alot' => 'a lot', 'proffesor' => 'professor', 'profesor' => 'professor', 'univercity' => 'university',
-    'universty' => 'university', 'studen' => 'student', 'studnet' => 'student', 'projet' => 'project', 'projcet' => 'project', 'developper' => 'developer',
+    'universty' => 'university', 'studen' => 'student', 'studnet' => 'student', 'budy' => 'buddy', 'projet' => 'project', 'projcet' => 'project', 'developper' => 'developer',
     'programing' => 'programming', 'langauge' => 'language', 'aplication' => 'application', 'applicaton' => 'application', 'websit' => 'website', 'wensite' => 'website',
     'desing' => 'design', 'colaborate' => 'collaborate', 'colaboration' => 'collaboration', 'collabration' => 'collaboration', 'opertunity' => 'opportunity',
     'oppurtunity' => 'opportunity', 'oportunity' => 'opportunity', 'abilty' => 'ability', 'availble' => 'available', 'avaliable' => 'available', 'teem' => 'team',
@@ -108,6 +108,20 @@ const AI_GRAMMAR_PATTERNS = [
     '/\ban (university|user|useful|unique|one|ui|url|european)\b/i' => 'a $1',
 ];
 
+/** High-confidence wording upgrades. These stay conservative so the user's meaning is preserved. */
+const AI_VOCAB_PATTERNS = [
+    '/\bvery good\b/i' => 'excellent',
+    '/\bvery important\b/i' => 'essential',
+    '/\ba lot of\b/i' => 'many',
+    '/\bmake (?:it|this) better\b/i' => 'improve it',
+    '/\bmake better\b/i' => 'improve',
+    '/\bdo research\b/i' => 'conduct research',
+    '/\bget experience\b/i' => 'gain experience',
+    '/\bwork together\b/i' => 'collaborate',
+    '/\beasy to use\b/i' => 'user-friendly',
+    '/\bmain goal\b/i' => 'primary goal',
+];
+
 const AI_STOP_WORDS = [
     'a','an','and','are','as','at','be','best','but','by','can','do','for','from','get','give','has','have','help','i','in','is','it','me','my','of','on','or','our','please','show','some','that','the','their','them','this','to','want','we','what','where','which','who','with','you','your',
     'find','search','looking','recommend','recommendation','need','inside','manbar','open','match','project','projects',
@@ -147,6 +161,13 @@ function fix_writing(string $text, string $style = 'body'): array
         $before = $text;
         $text = preg_replace($pattern, $replacement, $text);
         if ($text !== $before) $changes[] = ['from' => '…', 'to' => '…', 'why' => 'Improved grammar'];
+    }
+
+    // Prefer clearer vocabulary only when the replacement is safe and meaning-preserving.
+    foreach (AI_VOCAB_PATTERNS as $pattern => $replacement) {
+        $before = $text;
+        $text = preg_replace($pattern, $replacement, $text);
+        if ($text !== $before) $changes[] = ['from' => '…', 'to' => '…', 'why' => 'Clearer vocabulary'];
     }
 
     // Standalone "i" => "I"
@@ -201,6 +222,52 @@ function fix_writing(string $text, string $style = 'body'): array
         return $seen[$key] = true;
     }));
     return ['corrected' => $text, 'changes' => array_slice($changes, 0, 25), 'engine' => 'rules'];
+}
+
+/**
+ * Build a useful first draft for creation forms without requiring an external API.
+ * Existing descriptions are polished, never expanded or silently overwritten.
+ */
+function ai_form_draft(string $context, string $title, string $body = '', array $meta = []): array
+{
+    $context = in_array($context, ['project', 'service', 'course'], true) ? $context : 'project';
+    $title = trim(mb_substr($title, 0, 200));
+    $body = trim(mb_substr($body, 0, 4000));
+
+    if ($title === '' && $body !== '') {
+        $firstLine = preg_split('/[.!?\n]/u', $body, 2)[0] ?? $body;
+        $words = preg_split('/\s+/u', trim($firstLine), -1, PREG_SPLIT_NO_EMPTY);
+        $title = implode(' ', array_slice($words, 0, 12));
+    }
+
+    $cleanTitle = fix_writing($title, 'title')['corrected'];
+    if ($cleanTitle === '') $cleanTitle = $context === 'course' ? 'A practical campus course' : ($context === 'service' ? 'A campus service' : 'A campus project');
+
+    // If the user already wrote a description, respect it and only polish the language.
+    if ($body !== '') {
+        $cleanBody = fix_writing($body, 'body')['corrected'];
+        return ['title' => $cleanTitle, 'body' => $cleanBody, 'engine' => 'smart rules', 'generated' => false];
+    }
+
+    if ($context === 'service') {
+        if (preg_match('/^I\s+(?:will|can|offer to)\s+(.+)$/iu', $cleanTitle, $match)) {
+            $action = rtrim($match[1], '.');
+            $draft = "I will {$action}. We will begin by confirming your goals, requirements, preferred style, and deadline. I will complete the agreed work and deliver it in a clear, ready-to-use format, with straightforward communication throughout the process. Please include any useful examples or references when you send your request.";
+        } else {
+            $draft = "This service provides {$cleanTitle} for students and campus projects. We will begin by confirming your goals, requirements, preferred style, and deadline. You will receive the agreed work in a clear, ready-to-use format, with straightforward communication throughout the process. Please include any useful examples or references when you send your request.";
+        }
+    } elseif ($context === 'course') {
+        $topic = preg_replace('/^(?:an?\s+)?(?:introduction|intro)\s+to\s+/iu', '', $cleanTitle);
+        $topic = $topic !== '' ? $topic : $cleanTitle;
+        $level = strtolower((string) ($meta['level'] ?? 'beginner'));
+        if (!in_array($level, ['beginner', 'intermediate', 'advanced'], true)) $level = 'beginner';
+        $category = trim((string) ($meta['category'] ?? 'the subject')) ?: 'the subject';
+        $draft = "This {$level} course introduces students to {$topic} through clear explanations, practical examples, and guided activities. Learners will build a strong foundation, practise the core concepts, and apply what they learn in a practical task. By the end of the course, students will be ready to continue developing their {$category} skills independently.";
+    } else {
+        $draft = "{$cleanTitle} is a student-led project designed to solve a clear campus need. We will begin by understanding the problem and the students affected, then design and build a focused first version. The team will test the solution with users, use their feedback to improve it, and document the final outcome. We are looking for teammates who can contribute relevant skills and collaborate from planning through delivery.";
+    }
+
+    return ['title' => $cleanTitle, 'body' => fix_writing($draft, 'body')['corrected'], 'engine' => 'smart rules', 'generated' => true];
 }
 
 /* ============ 2) Where should I post this? ============ */

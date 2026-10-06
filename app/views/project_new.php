@@ -3,6 +3,7 @@
 <form method="post" action="<?= e(url('projects/new')) ?>" class="card project-create-card" enctype="multipart/form-data" data-ai-writing-form data-ai-context="project">
   <?= csrf_field() ?>
   <?php if ($from): ?><input type="hidden" name="from_post" value="<?= (int) $from['id'] ?>"><div class="chip mb">Turning your idea into a project: “<?= e(excerpt($from['title'], 50)) ?>”</div><?php endif ?>
+  <?php partial('writing_tools') ?>
   <div class="field"><label class="f">Project title</label><input class="input" name="title" data-draft="title" data-ai-writing="title" maxlength="200" required value="<?= e($from['title'] ?? '') ?>" placeholder="e.g. Campus study-buddy matcher"></div>
   <div class="field"><label class="f">What are you building?</label><textarea class="textarea" name="description" data-draft="body" data-ai-writing="body" rows="6" required placeholder="The problem, the plan, and what you want to achieve…"><?= e($from['body'] ?? '') ?></textarea></div>
   <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
