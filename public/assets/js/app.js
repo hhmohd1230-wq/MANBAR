@@ -303,13 +303,19 @@
   $$('[data-ai-writing-form]').forEach(form => {
     const fields = $$('[data-ai-writing]', form);
     const panel = $('[data-writing-assist]', form);
+    const draftButton = $('[data-ai-autofill]', form);
+    const improveButton = $('[data-ai-improve-all]', form);
     if (!fields.length || !panel) return;
     let timer = 0, requestNo = 0, lastChecked = '', dismissed = '';
 
     const signature = () => fields.map(field => field.value.trim()).join('\u241e');
-    const checkWriting = async () => {
+    const checkWriting = async (force = false) => {
       const sig = signature();
-      if (sig === lastChecked || sig === dismissed || sig.replace(/\u241e/g, '').length < 8) return;
+      if (sig.replace(/\u241e/g, '').length < 4) {
+        if (force) { toast('Write a few words first.', 'error'); fields[0].focus(); }
+        return;
+      }
+      if (!force && (sig === lastChecked || sig === dismissed)) return;
       lastChecked = sig;
       const ownRequest = ++requestNo;
       panel.hidden = false;
@@ -351,6 +357,67 @@
         panel.innerHTML = `${icon('alert', 16)} <span>${esc(err.message)} Your writing was not changed.</span>`;
       }
     };
+    const setToolBusy = (button, busy, label) => {
+      if (!button) return;
+      if (!button.dataset.idleHtml) button.dataset.idleHtml = button.innerHTML;
+      button.disabled = busy;
+      button.innerHTML = busy ? `${icon('sparkles', 15)} ${label}` : button.dataset.idleHtml;
+    };
+    draftButton?.addEventListener('click', async () => {
+      const titleField = $('[data-ai-writing="title"]', form);
+      const bodyField = $('[data-ai-writing="body"]', form);
+      const titleValue = titleField?.value.trim() || '';
+      const bodyValue = bodyField?.value.trim() || '';
+      if ((titleValue + bodyValue).length < 3) {
+        toast('Add a short title or idea first, then I can build the draft.', 'error');
+        (titleField || bodyField)?.focus();
+        return;
+      }
+      clearTimeout(timer);
+      const sourceSignature = signature();
+      const draftRequest = ++requestNo;
+      setToolBusy(draftButton, true, 'Building draft…');
+      if (improveButton) improveButton.disabled = true;
+      panel.hidden = false;
+      panel.className = 'writing-assist is-checking';
+      panel.innerHTML = `${icon('sparkles', 16)} <span>Turning your idea into a clear draft…</span>`;
+      try {
+        const result = await api('/api/ai/assist', {
+          action: 'draft', context: form.dataset.aiContext || 'project', title: titleValue, body: bodyValue,
+          category: $('[name="category"]', form)?.value || '', level: $('[name="level"]', form)?.value || '', local_only: 1
+        });
+        if (draftRequest !== requestNo || signature() !== sourceSignature) {
+          panel.hidden = true;
+          toast('Your text changed while I was drafting. Press Create a draft again when ready.', 'error');
+          return;
+        }
+        const draft = result.draft;
+        panel.className = 'writing-assist has-suggestions is-draft';
+        panel.innerHTML = `<div class="writing-assist-head"><span>${icon('wand', 17)} <b>${draft.generated ? 'Your draft is ready' : 'Your writing is polished'}</b></span><span class="writing-assist-local">Smart draft · no API required</span></div>
+          <div class="writing-assist-previews"><div><span>Title</span><p>${esc(draft.title)}</p></div><div><span>Description</span><p>${esc(draft.body)}</p></div></div>
+          <p class="writing-assist-note">Review the details before publishing. MANBAR AI never submits the form for you.</p>
+          <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-draft-apply>${icon('check', 14)} Use this draft</button><button class="btn btn-ghost btn-sm" type="button" data-writing-dismiss>Keep editing</button></div>`;
+        $('[data-draft-apply]', panel).onclick = () => {
+          if (titleField) titleField.value = draft.title;
+          if (bodyField) { bodyField.value = draft.body; autoGrow(bodyField); }
+          fields.forEach(field => field.dispatchEvent(new Event('input', { bubbles: true })));
+          clearTimeout(timer);
+          lastChecked = signature();
+          panel.hidden = false;
+          panel.className = 'writing-assist is-clear';
+          panel.innerHTML = `${icon('check-circle', 16)} <span>Draft added. Review and personalise it before publishing.</span>`;
+          setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 3200);
+        };
+        $('[data-writing-dismiss]', panel).onclick = () => { panel.hidden = true; };
+      } catch (err) {
+        panel.className = 'writing-assist is-error';
+        panel.innerHTML = `${icon('alert', 16)} <span>${esc(err.message)} Nothing was changed.</span>`;
+      } finally {
+        setToolBusy(draftButton, false, '');
+        if (improveButton) improveButton.disabled = false;
+      }
+    });
+    improveButton?.addEventListener('click', () => checkWriting(true));
     fields.forEach(field => field.addEventListener('input', () => {
       clearTimeout(timer);
       panel.hidden = true;

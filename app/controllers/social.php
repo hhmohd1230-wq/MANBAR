@@ -253,6 +253,17 @@ function api_ai_assist(): void
 {
     $u = require_login();
     ai_request_guard();
+    $action = (string) ($_POST['action'] ?? 'correct');
+    if ($action === 'draft') {
+        $title = trim((string) ($_POST['title'] ?? ''));
+        $body = trim((string) ($_POST['body'] ?? ''));
+        if (mb_strlen($title . $body) < 3) json_out(['ok' => false, 'error' => 'Add a short title or idea first.'], 422);
+        $draft = ai_form_draft((string) ($_POST['context'] ?? 'project'), $title, $body, [
+            'category' => (string) ($_POST['category'] ?? ''),
+            'level' => (string) ($_POST['level'] ?? ''),
+        ]);
+        json_out(['ok' => true, 'draft' => $draft]);
+    }
     $text = trim((string) ($_POST['text'] ?? ''));
     if (mb_strlen($text) < 4) json_out(['ok' => false, 'error' => 'Write a few words first.'], 422);
     $kind = in_array($_POST['kind'] ?? '', ['title', 'body', 'message'], true) ? (string) $_POST['kind'] : 'body';
