@@ -73,9 +73,9 @@ MANBAR verifies the Google ID token on the server (audience, issuer, expiry, ver
 - Admin → **Student roster**: import each university's list as CSV (`student_id, full_name, major, faculty, year_level`).
 - Going fully public later = allow any verified Google account; the code path is `university_for_email()` in `app/auth.php`.
 
-## 4 · Optional: enhanced language AI (OpenAI or Claude)
+## 4 · Optional: enhanced language AI (Gemini, OpenAI or Claude)
 
-The assistant’s writing checks, drafting, idea routing and MANBAR catalogue search all work without any key. Search is performed by MANBAR’s PHP backend against visible records; database credentials are never sent to a model. For strong contextual grammar, spelling and vocabulary review, set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` (the default is `gpt-6.1-sol`). You may instead set `ANTHROPIC_API_KEY` and optionally `ANTHROPIC_MODEL`. MANBAR tries OpenAI first, then Claude, then automatically falls back to its local engine. Only text submitted for an explicit AI review is sent to the configured provider.
+The assistant’s writing checks, drafting, idea routing and MANBAR catalogue search all work without any key. Search is performed by MANBAR’s PHP backend against visible records; database credentials are never sent to a model. For strong contextual grammar, spelling, vocabulary and form drafting, set `GEMINI_API_KEY` and optionally `GEMINI_MODEL` (the default is `gemini-3.5-flash-lite`). You may instead configure `OPENAI_API_KEY` / `OPENAI_MODEL` or `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`. MANBAR tries Gemini first, then OpenAI, Claude, and automatically falls back to its local engine. Automatic checks while typing stay local; only text submitted with an explicit AI action is sent to a configured provider. API keys must remain server-side and must never be committed or included in browser JavaScript.
 
 ## 5 · Publish on GitHub / move to a real server
 
