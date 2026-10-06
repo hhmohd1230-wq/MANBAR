@@ -305,6 +305,9 @@
     const panel = $('[data-writing-assist]', form);
     const draftButton = $('[data-ai-autofill]', form);
     const improveButton = $('[data-ai-improve-all]', form);
+    const toneControl = $('[data-ai-tone]', form);
+    const writingContext = form.dataset.aiContext || 'general writing';
+    const selectedTone = () => toneControl?.value || 'natural';
     if (!fields.length || !panel) return;
     let timer = 0, requestNo = 0, lastChecked = '', dismissed = '';
 
@@ -325,7 +328,7 @@
         const checked = await Promise.all(fields.map(field => {
           const text = field.value.trim();
           return text.length >= 3
-            ? api('/api/ai/assist', { text, kind: field.dataset.aiWriting, local_only: force ? 0 : 1 })
+            ? api('/api/ai/assist', { text, kind: field.dataset.aiWriting, tone: selectedTone(), context: writingContext, local_only: force ? 0 : 1 })
             : Promise.resolve(null);
         }));
         if (ownRequest !== requestNo || signature() !== sig) return;
@@ -342,7 +345,7 @@
         const usedLanguageAI = checked.some(result => ['gemini', 'groq', 'openai', 'claude'].includes(result?.fix?.engine));
         panel.className = 'writing-assist has-suggestions';
         panel.innerHTML = `<div class="writing-assist-head"><span>${icon('sparkles', 17)} <b>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</b></span><span class="writing-assist-local">${usedLanguageAI ? 'AI language review' : 'Local writing review'}</span></div>
-          <div class="writing-assist-previews">${suggestions.map(item => `<div><span>${item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description'}</span><p>${esc(item.corrected)}</p></div>`).join('')}</div>
+          <div class="writing-assist-previews">${suggestions.map(item => `<div><span>${item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description'}</span><div><p>${esc(item.corrected)}</p>${item.changes?.length ? `<div class="writing-reasons">${[...new Set(item.changes.map(change => change.why).filter(Boolean))].slice(0, 4).map(why => `<span>${esc(why)}</span>`).join('')}</div>` : ''}</div></div>`).join('')}</div>
           <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-writing-apply>${icon('check', 14)} Apply improvements</button><button class="btn btn-ghost btn-sm" type="button" data-writing-dismiss>Keep my wording</button></div>`;
         $('[data-writing-apply]', panel).onclick = () => {
           suggestions.forEach(item => { item.field.value = item.corrected; item.field.dispatchEvent(new Event('input', { bubbles: true })); if (item.field.tagName === 'TEXTAREA') autoGrow(item.field); });
@@ -384,7 +387,7 @@
       panel.innerHTML = `${icon('sparkles', 16)} <span>Turning your idea into a clear draft…</span>`;
       try {
         const result = await api('/api/ai/assist', {
-          action: 'draft', context: form.dataset.aiContext || 'project', title: titleValue, body: bodyValue,
+          action: 'draft', context: writingContext, title: titleValue, body: bodyValue, tone: selectedTone(),
           category: $('[name="category"]', form)?.value || '', level: $('[name="level"]', form)?.value || '', local_only: 0
         });
         if (draftRequest !== requestNo || signature() !== sourceSignature) {
@@ -438,6 +441,8 @@
       if (!button) return;
       const container = button.closest('form, .writing-inline, .modal-box');
       const field = container?.querySelector('[data-ai-writing]');
+      const tone = container?.querySelector('[data-ai-tone]')?.value || 'natural';
+      const context = container?.dataset.aiContext || 'quick message';
       const original = field?.value.trim() || '';
       if (!field || original.length < 3) { toast('Write a few words first.', 'error'); field?.focus(); return; }
       if (button.disabled) return;
@@ -446,7 +451,7 @@
       const oldLabel = button.getAttribute('aria-label');
       button.setAttribute('aria-label', 'Improving writing');
       try {
-        const result = await api('/api/ai/assist', { text: original, kind: field.dataset.aiWriting || 'message', local_only: 0 });
+        const result = await api('/api/ai/assist', { text: original, kind: field.dataset.aiWriting || 'message', tone, context, local_only: 0 });
         const corrected = result.fix?.corrected || original;
         if (corrected === original) {
           toast('Your writing already looks clear.');
@@ -534,7 +539,7 @@
   /* ---------- AI guide widget ---------- */
   const guide = $('#guide');
   if (guide) {
-    const msgs = $('#guideMsgs'), inp = $('#guideIn'), form = $('#guideForm'), sendButton = $('button[type=submit]', form);
+    const msgs = $('#guideMsgs'), inp = $('#guideIn'), form = $('#guideForm'), sendButton = $('button[type=submit]', form), guideStatus = $('.guide-status', guide);
     let sending = false;
     const toggle = open => { guide.classList.toggle('open', open); $('#guideFab').setAttribute('aria-expanded', String(open)); if (open) inp.focus(); };
     $('#guideFab').onclick = () => toggle(!guide.classList.contains('open'));
@@ -548,19 +553,22 @@
       add('me', esc(text));
       const wait = add('bot is-thinking', `<span class="guide-thinking">${icon('sparkles', 15)} Searching MANBAR and checking your writing…</span>`);
       try {
-        const r = await api('/api/ai/guide', { text });
+        const pageContext = `${document.title.replace(/\s*[|·-]\s*MANBAR.*$/i, '')} (${location.pathname})`;
+        const r = await api('/api/ai/guide', { text, page_context: pageContext });
+        const engineLabel = { gemini: 'Gemini', groq: 'Groq', openai: 'OpenAI', claude: 'Claude', rules: 'Local' }[r.engine] || 'Ready';
+        if (guideStatus) guideStatus.innerHTML = `<i></i> ${engineLabel}`;
         const p = r.route.primary;
         let h = esc(r.reply).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
         if (r.results?.length) {
           const typeIcon = { project: 'rocket', person: 'user', mentor: 'compass', course: 'book', service: 'store' };
           h += `<div class="guide-result-label">${icon('search', 14)} Live MANBAR results</div><div class="guide-results">${r.results.map((item, index) => `<article class="guide-result ${index === 0 ? 'is-best' : ''}">
-            <span class="guide-result-icon">${icon(typeIcon[item.type] || 'search', 16)}</span><div class="grow"><div class="guide-result-title">${esc(item.title)}${index === 0 ? '<span>Best match</span>' : ''}</div><p>${esc(item.description)}</p><small>${esc(item.meta)}</small><em>${esc(item.reason)}</em></div><button class="btn btn-sm" type="button" data-open-result="${esc(item.url)}" aria-label="Open ${esc(item.title)}">Open</button>
+            <span class="guide-result-icon">${icon(typeIcon[item.type] || 'search', 16)}</span><div class="grow"><div class="guide-result-title">${esc(item.title)}${index === 0 ? '<span>Best match</span>' : ''}${item.match ? `<em class="guide-match">${esc(item.match)}</em>` : ''}</div><p>${esc(item.description)}</p><small>${esc(item.meta)}</small><em>${esc(item.reason)}</em></div><button class="btn btn-sm" type="button" data-open-result="${esc(item.url)}" aria-label="Open ${esc(item.title)}">Open</button>
           </article>`).join('')}</div>`;
         } else if (r.intent === 'route') {
           h += `<div class="ai-route guide-route"><span class="guide-result-icon">${icon('compass', 17)}</span><div class="grow small"><b>${esc(p.label)}</b><br><span class="muted">${esc(p.hint)}</span></div><button class="btn btn-primary btn-sm" type="button" data-go="${esc(p.url)}">Take me there</button></div>`;
           if (r.route.alternatives.length) h += `<div class="sugg"><span class="xs muted">Other useful places:</span>${r.route.alternatives.map(a => `<button class="chip outline sm" type="button" data-go="${esc(a.url)}">${esc(a.label)}</button>`).join('')}</div>`;
         }
-        if (r.corrected && r.corrected !== text) h += `<div class="guide-correction"><span>${icon('edit', 14)} Polished wording</span><p>${esc(r.corrected)}</p><button class="btn btn-ghost btn-sm" type="button" data-use-correction>Use this in the assistant</button></div>`;
+        if (r.corrected && r.corrected !== text) h += `<div class="guide-correction"><span>${icon('edit', 14)} Polished wording</span><p>${esc(r.corrected)}</p>${r.changes?.length ? `<div class="guide-change-reasons">${[...new Set(r.changes.map(change => change.why).filter(Boolean))].slice(0, 4).map(why => `<span>${esc(why)}</span>`).join('')}</div>` : ''}<button class="btn btn-ghost btn-sm" type="button" data-use-correction>Use this in the assistant</button></div>`;
         if (r.suggestions?.length) h += `<div class="sugg guide-followups">${r.suggestions.map(s => `<button class="chip outline sm" type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
         wait.classList.remove('is-thinking');
         wait.innerHTML = h;
