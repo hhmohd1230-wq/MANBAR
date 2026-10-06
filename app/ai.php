@@ -51,7 +51,8 @@ const AI_TYPOS = [
     'reccomend' => 'recommend', 'recomend' => 'recommend', 'refered' => 'referred', 'relevent' => 'relevant', 'sucess' => 'success', 'succesful' => 'successful',
     'suprise' => 'surprise', 'tecnology' => 'technology', 'techonology' => 'technology', 'thru' => 'through', 'truely' => 'truly', 'unfortunatly' => 'unfortunately',
     'wierd' => 'weird', 'writting' => 'writing', 'alot' => 'a lot', 'proffesor' => 'professor', 'profesor' => 'professor', 'univercity' => 'university',
-    'universty' => 'university', 'studen' => 'student', 'studnet' => 'student', 'budy' => 'buddy', 'projet' => 'project', 'projcet' => 'project', 'developper' => 'developer',
+    'universty' => 'university', 'studen' => 'student', 'studnet' => 'student', 'budy' => 'buddy', 'maxth' => 'math', 'proekt' => 'project',
+    'probject' => 'project', 'projet' => 'project', 'projcet' => 'project', 'ancasonte' => 'a capstone', 'casonte' => 'capstone', 'developper' => 'developer',
     'programing' => 'programming', 'langauge' => 'language', 'aplication' => 'application', 'applicaton' => 'application', 'websit' => 'website', 'wensite' => 'website',
     'desing' => 'design', 'colaborate' => 'collaborate', 'colaboration' => 'collaboration', 'collabration' => 'collaboration', 'opertunity' => 'opportunity',
     'oppurtunity' => 'opportunity', 'oportunity' => 'opportunity', 'abilty' => 'ability', 'availble' => 'available', 'avaliable' => 'available', 'teem' => 'team',
@@ -67,7 +68,7 @@ const AI_TYPOS = [
     'explaination' => 'explanation', 'feauture' => 'feature', 'framwork' => 'framework', 'fucntion' => 'function', 'intrested' => 'interested',
     'knowlegeable' => 'knowledgeable', 'managment' => 'management', 'messege' => 'message', 'oppurtunities' => 'opportunities', 'peaple' => 'people',
     'preferrably' => 'preferably', 'proffesional' => 'professional', 'requirment' => 'requirement', 'requirments' => 'requirements',
-    'reserach' => 'research', 'responsability' => 'responsibility', 'shedule' => 'schedule', 'similiar' => 'similar', 'skils' => 'skills',
+    'reserach' => 'research', 'responsability' => 'responsibility', 'shedule' => 'schedule', 'similiar' => 'similar', 'skils' => 'skills', 'grammer' => 'grammar',
     'softwere' => 'software', 'specfic' => 'specific', 'studnets' => 'students', 'suport' => 'support', 'teammatees' => 'teammates', 'usefull' => 'useful',
 ];
 
@@ -100,6 +101,12 @@ const AI_GRAMMAR_PATTERNS = [
     '/\bwant join\b/i' => 'want to join',
     '/\bwant learn\b/i' => 'want to learn',
     '/\bwant find\b/i' => 'want to find',
+    '/\bwant (?:to be able to make )?people (?:to )?work with me\b/i' => 'want other people to collaborate with me',
+    '/\bwant people to be able to help me (?:in|with) it\b/i' => 'want people to help me with it',
+    '/\bhelp me in it\b/i' => 'help me with it',
+    '/\bmake an? math project\b/i' => 'create a math project',
+    '/\bmake an? project\b/i' => 'create a project',
+    '/\b(project|course|service|idea) and I want\b/i' => '$1, and I want',
     '/\blooking (?:a|an) teammate\b/i' => 'looking for a teammate',
     '/\blooking teammates\b/i' => 'looking for teammates',
     '/\blooking (?:a|an) mentor\b/i' => 'looking for a mentor',
@@ -180,6 +187,7 @@ function fix_writing(string $text, string $style = 'body'): array
     $text = preg_replace('/[ \t]+([,.!?;:])/', '$1', $text);
     $text = preg_replace('/([,;:])(?=[^\s\d"\')\]])/', '$1 ', $text);
     $text = preg_replace('/([.!?])(?=[A-Z][a-z])/', '$1 ', $text);
+    $text = preg_replace('/([\p{L}\p{N})])\n(?=[A-Z])/u', "$1.\n", $text);
     $text = preg_replace('/([!?]){3,}/', '$1', $text);
     $text = preg_replace('/\.{4,}/', '...', $text);
     $text = preg_replace('/\n{3,}/', "\n\n", $text);
@@ -500,7 +508,7 @@ function ai_llm(string $text, string $mode, ?array $user, string $style = 'body'
     foreach (AI_TARGETS as $k => $v) $targets[] = "$k = {$v['label']}: {$v['hint']}";
     $styleRule = $style === 'title' ? 'The text is a title: keep it concise and do not add a final period. ' : '';
     $system = "You are the MANBAR assistant for a university student platform. Reply with ONLY compact JSON. "
-        . "Keys: corrected (the user's text with spelling, grammar and punctuation fixed, same language, same meaning, do not add content), "
+        . "Keys: corrected (rewrite the user's text as fluent, natural writing in the same language; fix misspellings, grammar, punctuation, awkward wording and weak vocabulary while preserving the meaning and not adding factual claims), "
         . "target (best key from the list), reason (one friendly sentence), tags (up to 5 lower-case tags). Targets:\n" . implode("\n", $targets);
     $system .= ' ' . $styleRule;
     $payload = ['model' => cfg('anthropic_model'), 'max_tokens' => 900, 'system' => $system, 'messages' => [['role' => 'user', 'content' => $text]]];
