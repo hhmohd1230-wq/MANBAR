@@ -308,12 +308,27 @@
     if (!valid.length) return '';
     return `<div class="writing-change-list" aria-label="Detailed corrections">${valid.slice(0, 8).map(change => `<span class="writing-change" title="${esc(change.why || 'Writing improvement')}"><s>${esc(change.from || 'Original')}</s><i aria-hidden="true">→</i><b>${esc(change.to || 'Improved')}</b>${change.why ? `<small>${esc(change.why)}</small>` : ''}</span>`).join('')}</div>`;
   };
-  const writingReviewMarkup = ({ items, engine = 'rules', applyLabel = 'Apply improvements', dismissLabel = 'Keep my wording' }) => {
+  const mergeWritingDestinations = (...groups) => {
+    const unique = new Map();
+    groups.flat().filter(Boolean).forEach(item => { if (item?.url && !unique.has(item.url)) unique.set(item.url, item); });
+    return [...unique.values()].slice(0, 4);
+  };
+  const writingDestinationsMarkup = destinations => {
+    const matches = mergeWritingDestinations(destinations).slice(0, 3);
+    if (!matches.length) return '';
+    const typeIcon = { post: 'chat', project: 'rocket', person: 'user', mentor: 'compass', course: 'book', service: 'store' };
+    const typeLabel = { post: 'Community post', project: 'Project', person: 'Person', mentor: 'Mentor', course: 'Course', service: 'Service' };
+    return `<section class="writing-next" aria-label="Recommended MANBAR destinations"><header><span>${icon('compass', 17)}</span><div><b>Places you can go next</b><small>Live MANBAR matches based on what you wrote</small></div></header><div class="writing-next-list">${matches.map(item => `<a class="writing-next-item" href="${esc(item.url)}"><span class="writing-next-icon">${icon(typeIcon[item.type] || 'search', 16)}</span><span class="grow"><b>${esc(item.title)}</b><small>${esc(typeLabel[item.type] || 'MANBAR')} · ${esc(item.match || item.reason || 'Relevant')}</small>${item.description ? `<em>${esc(item.description)}</em>` : ''}</span><span class="writing-next-open">View ${icon('arrow-right', 13)}</span></a>`).join('')}</div></section>`;
+  };
+  const writingReviewMarkup = ({ items = [], destinations = [], engine = 'rules', applyLabel = 'Apply improvements', dismissLabel = 'Keep my wording' }) => {
     const count = items.reduce((total, item) => total + Math.max(1, (item.changes || []).length), 0);
-    return `<div class="writing-review-head"><span class="writing-review-mark">${icon('sparkles', 18)}</span><div class="grow"><b>MANBAR Assistant</b><span>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</span></div><em>${esc(writingEngineLabel(engine))}</em></div>
-      <p class="writing-review-intro">I polished your writing. Review the result and every important change before applying it.</p>
-      <div class="writing-review-items">${items.map(item => `<section class="writing-review-item"><span>${esc(item.label)}</span><p>${esc(item.corrected)}</p>${writingChangesMarkup(item.changes)}</section>`).join('')}</div>
-      <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-review-apply>${icon('check', 14)} ${esc(applyLabel)}</button><button class="btn btn-ghost btn-sm" type="button" data-review-dismiss>${esc(dismissLabel)}</button></div>`;
+    const status = items.length ? `${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready` : 'Your writing is clear';
+    const intro = items.length ? 'I polished your writing. Review the result and every important change before applying it.' : 'I did not find a safe correction to make, but I found relevant places inside MANBAR.';
+    return `<div class="writing-review-head"><span class="writing-review-mark">${icon('sparkles', 18)}</span><div class="grow"><b>MANBAR Assistant</b><span>${status}</span></div><em>${esc(writingEngineLabel(engine))}</em></div>
+      <p class="writing-review-intro">${intro}</p>
+      ${items.length ? `<div class="writing-review-items">${items.map(item => `<section class="writing-review-item"><span>${esc(item.label)}</span><p>${esc(item.corrected)}</p>${writingChangesMarkup(item.changes)}</section>`).join('')}</div>` : ''}
+      <div class="writing-assist-actions">${items.length ? `<button class="btn btn-primary btn-sm" type="button" data-review-apply>${icon('check', 14)} ${esc(applyLabel)}</button>` : ''}<button class="btn btn-ghost btn-sm" type="button" data-review-dismiss>${esc(items.length ? dismissLabel : 'Close')}</button></div>
+      ${writingDestinationsMarkup(destinations)}`;
   };
 
   /* ---------- automatic local writing coach ---------- */
@@ -356,10 +371,17 @@
             : Promise.resolve(null);
         }));
         if (ownRequest !== requestNo || signature() !== sig) return;
+        const destinations = mergeWritingDestinations(...checked.map(result => result?.results || []));
         const suggestions = checked.map((result, index) => result && result.fix.corrected !== fields[index].value.trim()
           ? { field: fields[index], original: fields[index].value.trim(), corrected: result.fix.corrected, changes: result.fix.changes || [], engine: result.fix.engine || 'rules' }
           : null).filter(Boolean);
         if (!suggestions.length) {
+          if (destinations.length) {
+            panel.className = 'writing-assist writing-review-card';
+            panel.innerHTML = writingReviewMarkup({ destinations, engine: checked.find(result => result?.fix?.engine)?.fix?.engine || 'rules' });
+            $('[data-review-dismiss]', panel).onclick = () => { dismissed = sig; panel.hidden = true; };
+            return;
+          }
           panel.className = 'writing-assist is-clear';
           panel.innerHTML = `${icon('check-circle', 16)} <span>Writing check complete — everything looks clear.</span>`;
           setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 2400);
@@ -369,14 +391,17 @@
         panel.className = 'writing-assist has-suggestions writing-review-card';
         panel.innerHTML = writingReviewMarkup({
           engine: reviewEngine,
+          destinations,
           items: suggestions.map(item => ({ label: item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description', corrected: item.corrected, changes: item.changes }))
         });
         $('[data-review-apply]', panel).onclick = () => {
           suggestions.forEach(item => { item.field.value = item.corrected; item.field.dispatchEvent(new Event('input', { bubbles: true })); if (item.field.tagName === 'TEXTAREA') autoGrow(item.field); });
+          clearTimeout(timer);
           lastChecked = signature();
-          panel.className = 'writing-assist is-clear';
-          panel.innerHTML = `${icon('check-circle', 16)} <span>Improvements applied. You can still edit anything before publishing.</span>`;
-          setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 2600);
+          panel.hidden = false;
+          panel.className = destinations.length ? 'writing-assist writing-review-card' : 'writing-assist is-clear';
+          panel.innerHTML = `<div class="writing-applied">${icon('check-circle', 16)} <span>Improvements applied. Here are the best places to continue.</span></div>${writingDestinationsMarkup(destinations)}`;
+          if (!destinations.length) setTimeout(() => { if (panel.classList.contains('is-clear')) panel.hidden = true; }, 2600);
         };
         $('[data-review-dismiss]', panel).onclick = () => { dismissed = sig; panel.hidden = true; };
       } catch (err) {
@@ -491,7 +516,7 @@
           toast('Your text changed while MANBAR AI was reviewing it. Try again when ready.', 'error');
           return;
         }
-        if (corrected === original) {
+        if (corrected === original && !(result.results || []).length) {
           toast('Your writing already looks clear.');
         } else {
           const panel = quickReviewPanel(container);
@@ -500,17 +525,19 @@
           panel.innerHTML = writingReviewMarkup({
             engine: result.fix?.engine || 'rules',
             applyLabel: 'Apply correction',
-            items: [{ label: field.dataset.aiWriting === 'title' ? 'Title' : 'Message', corrected, changes: result.fix?.changes || [] }]
+            destinations: result.results || [],
+            items: corrected === original ? [] : [{ label: field.dataset.aiWriting === 'title' ? 'Title' : 'Message', corrected, changes: result.fix?.changes || [] }]
           });
-          $('[data-review-apply]', panel).onclick = () => {
+          $('[data-review-apply]', panel)?.addEventListener('click', () => {
             field.value = corrected;
             field.dispatchEvent(new Event('input', { bubbles: true }));
             if (field.tagName === 'TEXTAREA') autoGrow(field);
-            panel.className = 'writing-assist is-clear is-quick';
-            panel.innerHTML = `${icon('check-circle', 16)} <span>Correction applied. Review it once more before sending.</span>`;
+            const destinations = result.results || [];
+            panel.className = destinations.length ? 'writing-assist writing-review-card is-quick' : 'writing-assist is-clear is-quick';
+            panel.innerHTML = `<div class="writing-applied">${icon('check-circle', 16)} <span>Correction applied${destinations.length ? '. Here are the best places to continue.' : '. Review it once more before sending.'}</span></div>${writingDestinationsMarkup(destinations)}`;
             field.focus();
-            setTimeout(() => { if (panel.classList.contains('is-clear')) panel.remove(); }, 2600);
-          };
+            if (!destinations.length) setTimeout(() => { if (panel.classList.contains('is-clear')) panel.remove(); }, 2600);
+          });
           $('[data-review-dismiss]', panel).onclick = () => { panel.remove(); field.focus(); };
         }
       } catch (err) {
@@ -552,14 +579,8 @@
         if (newTitle && newTitle !== ttl) reviewItems.push({ label: 'Title', corrected: newTitle, changes: rt?.fix?.changes || [] });
         if (newBody && newBody !== txt) reviewItems.push({ label: 'Description', corrected: newBody, changes: fixB.changes || [] });
         const reviewEngine = [rt?.fix?.engine, fixB.engine].find(engine => engine && engine !== 'rules') || fixB.engine;
-        let html = '';
-        if (changed) {
-          panel.className = 'ai-panel writing-review-card';
-          html += writingReviewMarkup({ items: reviewItems, engine: reviewEngine, applyLabel: 'Apply corrections' });
-        } else {
-          panel.className = 'ai-panel is-clear';
-          html += `<div class="small row">${icon('check-circle', 16)} Your writing looks clean — nothing to correct.</div>`;
-        }
+        panel.className = 'ai-panel writing-review-card';
+        let html = writingReviewMarkup({ items: reviewItems, destinations: rb.results || [], engine: reviewEngine, applyLabel: 'Apply corrections' });
         const isType = ['idea', 'team', 'question', 'resource', 'achievement', 'event', 'announcement', 'teaching'].includes(p.key);
         html += `<div class="ai-route"><span class="badge-ico tone-green" style="width:40px;height:40px;margin:0;border-radius:13px">${icon('compass', 20)}</span><div class="grow small"><b>Best place: ${esc(p.label)}</b><br><span class="muted">${esc(p.reason)}</span></div>`;
         if (isType && p.key !== cur && $(`input[name=type][value=${p.key}]`, form)) html += `<button type="button" class="btn btn-sm" id="aiSwitch">Use “${esc(p.label)}”</button>`;
@@ -568,7 +589,16 @@
         html += `</div>`;
         if (rt1.tags?.length) html += `<div class="row wrap" style="margin-top:10px"><span class="small muted">Suggested tags:</span>${rt1.tags.map(t => `<button type="button" class="chip outline sm" data-addtag="${esc(t)}">+ #${esc(t)}</button>`).join('')}</div>`;
         panel.innerHTML = html;
-        $('[data-review-apply]', panel)?.addEventListener('click', () => { if (newBody) body.value = newBody; if (newTitle) title.value = newTitle; toast('Corrections applied'); panel.hidden = true; });
+        $('[data-review-apply]', panel)?.addEventListener('click', () => {
+          if (newBody) body.value = newBody;
+          if (newTitle) title.value = newTitle;
+          const destinations = rb.results || [];
+          if (destinations.length) {
+            panel.className = 'ai-panel writing-review-card';
+            panel.innerHTML = `<div class="writing-applied">${icon('check-circle', 16)} <span>Corrections applied. Here are the best places to continue.</span></div>${writingDestinationsMarkup(destinations)}`;
+          } else panel.hidden = true;
+          toast('Corrections applied');
+        });
         $('[data-review-dismiss]', panel)?.addEventListener('click', () => { panel.hidden = true; });
         $('#aiSwitch', panel)?.addEventListener('click', () => { const r = $(`input[name=type][value=${p.key}]`, form); r.checked = true; r.dispatchEvent(new Event('change')); toast('Post type changed to ' + p.label); });
         $('#aiGo', panel)?.addEventListener('click', () => { sessionStorage.setItem('manbarDraft', JSON.stringify({ title: title.value, body: newBody || txt })); location.href = p.url; });
@@ -615,8 +645,9 @@
         if (guideStatus) guideStatus.innerHTML = `<i></i> ${engineLabel}`;
         const p = r.route.primary;
         let h = esc(r.reply).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        if (r.corrected && r.corrected !== text) h += `<div class="guide-correction"><span>${icon('edit', 14)} Polished wording</span><p>${esc(r.corrected)}</p>${writingChangesMarkup(r.changes)}<button class="btn btn-ghost btn-sm" type="button" data-use-correction>Use this in the assistant</button></div>`;
         if (r.results?.length) {
-          const typeIcon = { project: 'rocket', person: 'user', mentor: 'compass', course: 'book', service: 'store' };
+          const typeIcon = { post: 'chat', project: 'rocket', person: 'user', mentor: 'compass', course: 'book', service: 'store' };
           h += `<div class="guide-result-label">${icon('search', 14)} Live MANBAR results</div><div class="guide-results">${r.results.map((item, index) => `<article class="guide-result ${index === 0 ? 'is-best' : ''}">
             <span class="guide-result-icon">${icon(typeIcon[item.type] || 'search', 16)}</span><div class="grow"><div class="guide-result-title">${esc(item.title)}${index === 0 ? '<span>Best match</span>' : ''}${item.match ? `<em class="guide-match">${esc(item.match)}</em>` : ''}</div><p>${esc(item.description)}</p><small>${esc(item.meta)}</small><em>${esc(item.reason)}</em></div><button class="btn btn-sm" type="button" data-open-result="${esc(item.url)}" aria-label="Open ${esc(item.title)}">Open</button>
           </article>`).join('')}</div>`;
@@ -624,7 +655,6 @@
           h += `<div class="ai-route guide-route"><span class="guide-result-icon">${icon('compass', 17)}</span><div class="grow small"><b>${esc(p.label)}</b><br><span class="muted">${esc(p.hint)}</span></div><button class="btn btn-primary btn-sm" type="button" data-go="${esc(p.url)}">Take me there</button></div>`;
           if (r.route.alternatives.length) h += `<div class="sugg"><span class="xs muted">Other useful places:</span>${r.route.alternatives.map(a => `<button class="chip outline sm" type="button" data-go="${esc(a.url)}">${esc(a.label)}</button>`).join('')}</div>`;
         }
-        if (r.corrected && r.corrected !== text) h += `<div class="guide-correction"><span>${icon('edit', 14)} Polished wording</span><p>${esc(r.corrected)}</p>${writingChangesMarkup(r.changes)}<button class="btn btn-ghost btn-sm" type="button" data-use-correction>Use this in the assistant</button></div>`;
         if (r.suggestions?.length) h += `<div class="sugg guide-followups">${r.suggestions.map(s => `<button class="chip outline sm" type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join('')}</div>`;
         wait.classList.remove('is-thinking');
         wait.innerHTML = h;
