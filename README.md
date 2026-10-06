@@ -18,7 +18,7 @@ Capstone project, College of Engineering, Al Ain University (Yaman AlNasri, Tami
 | **Mentorship** | Mentor directory · requests · scheduling · feedback |
 | **Achievements** | Points, 13 badges, 6 levels, leaderboard |
 | **Messages & notifications** | Direct messages, live badges |
-| **MANBAR Assistant** | Suggests spelling/grammar improvements for titles and descriptions, routes ideas to the right page, and searches/ranks live projects, people, mentors, courses and services against the student’s request and profile (works locally; optional Claude API) |
+| **MANBAR Assistant** | Drafts and improves writing, routes ideas to the right page, and searches/ranks live projects, people, mentors, courses and services against the student’s request and profile (works locally; optional OpenAI or Claude language review) |
 | **Admin dashboard** | Analytics charts, users (roles, suspend, verify, CSV export), **roster CSV import**, moderation & reports, content control, **universities** (switch ADU / UAEU on later), settings, audit log |
 
 Roles: `student`, `teacher` (extra tools: announcements, teaching offers, courses, mentor profile) and `admin`.
@@ -73,9 +73,9 @@ MANBAR verifies the Google ID token on the server (audience, issuer, expiry, ver
 - Admin → **Student roster**: import each university's list as CSV (`student_id, full_name, major, faculty, year_level`).
 - Going fully public later = allow any verified Google account; the code path is `university_for_email()` in `app/auth.php`.
 
-## 4 · Optional: enhanced language AI (Claude)
+## 4 · Optional: enhanced language AI (OpenAI or Claude)
 
-The assistant’s writing checks, idea routing and MANBAR catalogue search all work without any key. Search is performed by MANBAR’s PHP backend against visible records; database credentials are never sent to a model. To add broader free-form language understanding later, set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`). If that call is unavailable, the assistant automatically keeps using the local engine.
+The assistant’s writing checks, drafting, idea routing and MANBAR catalogue search all work without any key. Search is performed by MANBAR’s PHP backend against visible records; database credentials are never sent to a model. For strong contextual grammar, spelling and vocabulary review, set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` (the default is `gpt-6.1-sol`). You may instead set `ANTHROPIC_API_KEY` and optionally `ANTHROPIC_MODEL`. MANBAR tries OpenAI first, then Claude, then automatically falls back to its local engine. Only text submitted for an explicit AI review is sent to the configured provider.
 
 ## 5 · Publish on GitHub / move to a real server
 
