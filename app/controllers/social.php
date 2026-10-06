@@ -264,7 +264,7 @@ function api_ai_assist(): void
             'category' => (string) ($_POST['category'] ?? ''),
             'level' => (string) ($_POST['level'] ?? ''),
         ];
-        $draft = !$localOnly ? ai_gemini_form_draft($context, $title, $body, $meta) : null;
+        $draft = !$localOnly ? (ai_gemini_form_draft($context, $title, $body, $meta) ?? ai_groq_form_draft($context, $title, $body, $meta)) : null;
         $draft ??= ai_form_draft($context, $title, $body, $meta);
         json_out(['ok' => true, 'draft' => $draft]);
     }
