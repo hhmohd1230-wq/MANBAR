@@ -19,7 +19,7 @@
       <div class="card-title" style="padding:18px 22px 0"><h3><?= icon('chat', 18) ?> Discussion</h3></div>
       <div class="comments" style="border:0;background:none">
         <form class="comment-form" data-comment-form data-post="<?= (int) $p['id'] ?>" style="margin-top:6px">
-          <?= avatar($u, 38) ?><div class="grow"><textarea class="textarea" name="body" rows="1" placeholder="Add to the discussion…" required></textarea></div><button class="btn btn-primary" type="submit" aria-label="Send"><?= icon('send', 17) ?></button>
+          <?= avatar($u, 38) ?><div class="grow"><textarea class="textarea" name="body" data-ai-writing="message" rows="1" placeholder="Add to the discussion…" required></textarea></div><button class="icon-btn writing-quick" type="button" data-ai-quick aria-label="Improve writing" title="Improve writing"><?= icon('sparkles', 17) ?></button><button class="btn btn-primary" type="submit" aria-label="Send"><?= icon('send', 17) ?></button>
         </form>
         <div id="commentList" data-post="<?= (int) $p['id'] ?>">
           <?php foreach ($comments as $c) partial('comment', ['c' => $c, 'u' => $u, 'p' => $p]) ?>

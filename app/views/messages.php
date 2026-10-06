@@ -67,7 +67,8 @@ $lastMessageId = $conv ? (int) end($conv)['id'] : 0;
             <input class="sr-only" id="dmAttachment" type="file" name="attachment" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.webm,.ogg,.m4a,.wav,.aac">
             <button class="dm-tool" type="button" id="dmEmojiButton" title="Add an emoji" aria-expanded="false"><?= icon('smile', 21) ?><span class="sr-only">Add an emoji</span></button>
             <button class="dm-tool dm-record-button" type="button" id="dmRecordButton" title="Record a voice message" aria-label="Record a voice message" aria-pressed="false"><?= icon('mic', 21) ?></button>
-            <textarea class="dm-input" name="body" id="dmInput" maxlength="2000" rows="1" placeholder="Type a message" autocomplete="off"></textarea>
+            <button class="dm-tool writing-quick" type="button" data-ai-quick title="Improve writing" aria-label="Improve writing"><?= icon('sparkles', 21) ?></button>
+            <textarea class="dm-input" name="body" id="dmInput" data-ai-writing="message" maxlength="2000" rows="1" placeholder="Type a message" autocomplete="off"></textarea>
             <button class="dm-send" type="submit" aria-label="Send message"><?= icon('send', 20) ?></button>
           </form>
           <p class="dm-file-note">Voice messages, images, PDF, Office, text, CSV and ZIP · up to <?= (int) (cfg('message_upload_max_mb') ?: 12) ?> MB</p>

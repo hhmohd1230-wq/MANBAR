@@ -185,7 +185,7 @@
     if (sh) {
       const id = sh.dataset.share;
       const m = modal(`<h3>Share this post</h3><p class="muted small">Repost it to your profile with an optional note, or copy the link.</p>
-        <textarea class="textarea" id="shareNote" placeholder="Add your thoughts (optional)…" maxlength="500"></textarea>
+        <div class="writing-inline"><textarea class="textarea" id="shareNote" data-ai-writing="message" placeholder="Add your thoughts (optional)…" maxlength="500"></textarea><button class="icon-btn writing-quick" type="button" data-ai-quick aria-label="Improve writing" title="Improve writing">${icon('sparkles', 17)}</button></div>
         <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn" id="shareCopy">${icon('link', 16)} Copy link</button><button class="btn btn-primary" id="shareGo">${icon('share', 16)} Share to my feed</button></div>`);
       $('#shareCopy', m).onclick = () => { navigator.clipboard?.writeText(location.origin + BASE + '/post/' + id); toast('Link copied'); m.remove(); };
       $('#shareGo', m).onclick = async () => { try { const r = await api('/api/share', { id, note: $('#shareNote', m).value }); toast('Shared to your feed!'); m.remove(); setTimeout(() => location.href = r.url, 700); } catch (err) { toast(err.message, 'error'); } };
@@ -235,7 +235,7 @@
       if ($(`[data-comment-form][data-parent="${id}"]`, box)) return;
       const f = document.createElement('form');
       f.className = 'comment-form'; f.dataset.commentForm = ''; f.dataset.post = $('#commentList').dataset.post; f.dataset.parent = id;
-      f.innerHTML = `<div class="grow"><textarea class="textarea" rows="1" placeholder="Write a reply…" required></textarea></div><button class="btn btn-primary btn-sm" type="submit">${icon('send', 15)}</button>`;
+      f.innerHTML = `<div class="grow"><textarea class="textarea" data-ai-writing="message" rows="1" placeholder="Write a reply…" required></textarea></div><button class="icon-btn writing-quick" type="button" data-ai-quick aria-label="Improve writing" title="Improve writing">${icon('sparkles', 15)}</button><button class="btn btn-primary btn-sm" type="submit" aria-label="Send reply">${icon('send', 15)}</button>`;
       box.append(f); $('textarea', f).focus();
       return;
     }
@@ -361,6 +361,40 @@
       clearTimeout(timer);
       timer = setTimeout(checkWriting, 350);
     });
+  });
+
+  /* Fast writing fields (chat and comments): improve only when the user asks. */
+  document.addEventListener('click', async event => {
+      const button = event.target.closest('[data-ai-quick]');
+      if (!button) return;
+      const container = button.closest('form, .writing-inline, .modal-box');
+      const field = container?.querySelector('[data-ai-writing]');
+      const original = field?.value.trim() || '';
+      if (!field || original.length < 3) { toast('Write a few words first.', 'error'); field?.focus(); return; }
+      if (button.disabled) return;
+      button.disabled = true;
+      button.classList.add('is-loading');
+      const oldLabel = button.getAttribute('aria-label');
+      button.setAttribute('aria-label', 'Improving writing');
+      try {
+        const result = await api('/api/ai/assist', { text: original, kind: field.dataset.aiWriting || 'message', local_only: 1 });
+        const corrected = result.fix?.corrected || original;
+        if (corrected === original) {
+          toast('Your writing already looks clear.');
+        } else {
+          field.value = corrected;
+          field.dispatchEvent(new Event('input', { bubbles: true }));
+          if (field.tagName === 'TEXTAREA') autoGrow(field);
+          toast('Writing improved — review it before sending.');
+        }
+        field.focus();
+      } catch (err) {
+        toast(err.message || 'Writing check failed. Try again.', 'error');
+      } finally {
+        button.disabled = false;
+        button.classList.remove('is-loading');
+        button.setAttribute('aria-label', oldLabel || 'Improve writing');
+      }
   });
 
   /* ---------- composer + AI assist ---------- */
@@ -661,6 +695,7 @@
     const emojiPanel = $('#dmEmojiPanel');
     const emojiButton = $('#dmEmojiButton');
     const recordButton = $('#dmRecordButton');
+    const improveButton = $('[data-ai-quick]', dmForm);
     const voiceRecorder = $('#dmVoiceRecorder');
     const recordingLive = $('#dmRecordingLive');
     const recordingTime = $('#dmRecordingTime');
@@ -702,6 +737,7 @@
       input.disabled = active;
       fileInput.disabled = active;
       emojiButton.disabled = active;
+      if (improveButton) improveButton.disabled = active;
       send.disabled = active;
       recordButton.classList.toggle('recording', active);
       recordButton.setAttribute('aria-pressed', String(active));

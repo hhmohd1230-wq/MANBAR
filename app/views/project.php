@@ -26,8 +26,9 @@ $full = count($members) >= (int) $p['max_members'];
           <button class="btn btn-ghost btn-sm" data-copy="<?= e(url('projects/' . $p['id'])) ?>"><?= icon('link', 15) ?> Copy link</button>
           <?php if (!$isOwner): ?><button class="btn btn-ghost btn-sm" data-report="project" data-id="<?= (int) $p['id'] ?>"><?= icon('flag', 15) ?> Report</button><?php endif ?>
         </div>
-        <form id="applyBox" hidden method="post" action="<?= e(url('projects/' . $p['id'] . '/apply')) ?>" class="mt"><?= csrf_field() ?>
-          <label class="f">Tell the owner why you’re a great fit</label><textarea class="textarea" name="message" placeholder="Your skills, availability and what you’d like to contribute…"></textarea>
+        <form id="applyBox" hidden method="post" action="<?= e(url('projects/' . $p['id'] . '/apply')) ?>" class="mt" data-ai-writing-form data-ai-context="project application"><?= csrf_field() ?>
+          <label class="f">Tell the owner why you’re a great fit</label><textarea class="textarea" name="message" data-ai-writing="body" placeholder="Your skills, availability and what you’d like to contribute…"></textarea>
+          <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
           <button class="btn btn-primary mt" type="submit"><?= icon('send', 16) ?> Send application</button>
         </form>
       </div>
@@ -49,10 +50,11 @@ $full = count($members) >= (int) $p['max_members'];
       <div class="card-title"><h3><?= icon('grid', 18) ?> Task board</h3><span class="small muted"><?= count($byStatus['done']) ?>/<?= count($tasks) ?> done · <?= $pct ?>%</span></div>
       <div class="progress mb"><i style="width:<?= $pct ?>%"></i></div>
       <?php if ($isMember): ?>
-      <form method="post" action="<?= e(url('projects/' . $p['id'] . '/tasks')) ?>" class="row wrap mb"><?= csrf_field() ?>
-        <input class="input grow" name="title" placeholder="Add a task…" required style="min-width:200px">
+      <form method="post" action="<?= e(url('projects/' . $p['id'] . '/tasks')) ?>" class="row wrap mb" data-ai-writing-form data-ai-context="project task"><?= csrf_field() ?>
+        <input class="input grow" name="title" data-ai-writing="title" placeholder="Add a task…" required style="min-width:200px">
         <select class="select" name="assignee_id" style="width:auto"><option value="">Unassigned</option><?php foreach ($members as $m): ?><option value="<?= (int) $m['user_id'] ?>"><?= e(explode(' ', $m['full_name'])[0]) ?></option><?php endforeach ?></select>
         <input class="input" type="date" name="due_date" style="width:auto"><button class="btn btn-primary" type="submit"><?= icon('plus', 16) ?> Add</button>
+        <div class="writing-assist writing-assist-row" data-writing-assist hidden aria-live="polite"></div>
       </form><?php endif ?>
       <div class="kanban">
         <?php foreach ($cols as $k => $label): ?><div class="kcol"><h4><span><?= $label ?></span><span><?= count($byStatus[$k]) ?></span></h4>
@@ -68,8 +70,8 @@ $full = count($members) >= (int) $p['max_members'];
     <div class="card" id="chat">
       <div class="card-title"><h3><?= icon('chat', 18) ?> Team chat &amp; updates</h3></div>
       <?php if ($isMember): ?><form method="post" action="<?= e(url('projects/' . $p['id'] . '/message')) ?>" class="row mb" style="align-items:flex-start"><?= csrf_field() ?>
-        <textarea class="textarea grow" name="body" rows="2" placeholder="Message your team…" required style="min-height:56px"></textarea>
-        <div class="stack gap-s"><button class="btn btn-primary" type="submit"><?= icon('send', 16) ?></button><label class="xs muted" style="cursor:pointer"><input type="checkbox" name="is_update" value="1"> Public update</label></div></form><?php endif ?>
+        <textarea class="textarea grow" name="body" data-ai-writing="message" rows="2" placeholder="Message your team…" required style="min-height:56px"></textarea>
+        <div class="stack gap-s"><button class="btn btn-ghost writing-quick" type="button" data-ai-quick aria-label="Improve writing" title="Improve writing"><?= icon('sparkles', 16) ?></button><button class="btn btn-primary" type="submit"><?= icon('send', 16) ?></button><label class="xs muted" style="cursor:pointer"><input type="checkbox" name="is_update" value="1"> Public update</label></div></form><?php endif ?>
       <div class="chat"><?php foreach ($msgs as $m): ?>
         <div class="msg <?= $m['is_update'] ? 'upd' : '' ?>"><?= avatar($m, 34) ?><div class="bub"><b class="small"><?= e($m['full_name']) ?></b> <span class="xs muted"><?= e(time_ago($m['created_at'])) ?></span><?= $m['is_update'] ? ' <span class="chip sm tchip tone-amber">Update</span>' : '' ?><div><?= rich($m['body']) ?></div></div></div>
       <?php endforeach ?><?php if (!$msgs): ?><p class="muted small tc">No messages yet.</p><?php endif ?></div>
@@ -84,12 +86,13 @@ $full = count($members) >= (int) $p['max_members'];
       <div class="w-list"><?php foreach ($members as $m): ?><div class="person"><a href="<?= e(url('profile/' . $m['user_id'])) ?>"><?= avatar($m, 40) ?></a><div class="grow"><a class="nm" href="<?= e(url('profile/' . $m['user_id'])) ?>"><?= e($m['full_name']) ?></a><?= verified_badge($m) ?><div class="xs muted"><?= e($m['role']) ?></div></div></div><?php endforeach ?></div></div>
     <?php if ($isOwner): ?>
     <div class="card"><div class="card-title"><h3><?= icon('settings', 18) ?> Manage project</h3></div>
-      <form method="post" action="<?= e(url('projects/' . $p['id'] . '/status')) ?>" enctype="multipart/form-data"><?= csrf_field() ?>
+      <form method="post" action="<?= e(url('projects/' . $p['id'] . '/status')) ?>" enctype="multipart/form-data" data-ai-writing-form data-ai-context="project outcome"><?= csrf_field() ?>
         <div class="field"><label class="f">Status</label><select class="select" name="status" id="pstatus"><?php foreach (['open' => 'Open for applications', 'in_progress' => 'In progress', 'completed' => 'Completed', 'closed' => 'Closed'] as $k => $l): ?><option value="<?= $k ?>" <?= $p['status'] === $k ? 'selected' : '' ?>><?= $l ?></option><?php endforeach ?></select></div>
         <div class="field"><label class="f">Max team size</label><input class="input" type="number" name="max_members" min="2" max="30" value="<?= (int) $p['max_members'] ?>"></div>
         <div class="field"><label class="f">Cover background</label><div class="project-cover-options compact"><?php foreach (PROJECT_COVER_THEMES as $i => $label): ?><label class="project-cover-choice" title="<?= e($label) ?>"><input type="radio" name="cover_theme" value="<?= $i ?>" <?= project_cover_theme($p) === $i ? 'checked' : '' ?>><span class="project-cover-swatch project-cover project-cover-t<?= $i ?>"><i><?= icon('check', 13) ?></i></span></label><?php endforeach ?></div></div>
         <div class="field"><label class="f" for="projectCoverManage">Custom image</label><input class="input" id="projectCoverManage" type="file" name="cover_image" accept="image/jpeg,image/png,image/webp,image/gif"><?php if (!empty($p['cover_image'])): ?><label class="small muted row gap-s" style="margin-top:8px"><input type="checkbox" name="remove_cover_image" value="1"> Remove current custom image</label><?php endif ?></div>
-        <div class="field"><label class="f">Outcome (shown when completed)</label><textarea class="textarea" name="outcome" style="min-height:70px" placeholder="What did you achieve?"><?= e($p['outcome']) ?></textarea></div>
+        <div class="field"><label class="f">Outcome (shown when completed)</label><textarea class="textarea" name="outcome" data-ai-writing="body" style="min-height:70px" placeholder="What did you achieve?"><?= e($p['outcome']) ?></textarea></div>
+        <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
         <div class="hint">Completing a project gives every member +30 points.</div>
       </form>
