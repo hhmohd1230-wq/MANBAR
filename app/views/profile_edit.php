@@ -1,6 +1,6 @@
 <?php $title = 'Edit profile'; $isStaff = in_array($u['role'], ['teacher', 'admin'], true); $activeNameStyle = $p['name_style'] ?? 'classic'; $activeEffect = $p['profile_effect'] ?? 'none'; ?>
 <div class="pagehead profile-edit-head"><div><h1>Make your profile yours</h1><p>Shape how classmates see your work, personality and ways to connect.</p></div><a class="btn btn-ghost" href="<?= e(url('profile/' . $u['id'])) ?>">Cancel</a></div>
-<form method="post" enctype="multipart/form-data" action="<?= e(url('profile/edit')) ?>" class="card profile-edit-form">
+<form method="post" enctype="multipart/form-data" action="<?= e(url('profile/edit')) ?>" class="card profile-edit-form" data-ai-writing-form data-ai-context="profile">
   <?= csrf_field() ?>
   <section class="profile-edit-section profile-edit-media">
     <div class="profile-edit-section-head"><span><?= icon('image', 20) ?></span><div><h2>Profile media</h2><p>Your photo and cover set the first impression.</p></div></div>
@@ -17,8 +17,9 @@
     <div class="field"><label class="f">Full name</label><input class="input" name="full_name" value="<?= e($u['full_name']) ?>" <?= $roster ? 'readonly' : 'required' ?>><?php if ($roster): ?><div class="hint">Locked: matched with the university roster (#<?= e($u['student_id']) ?>).</div><?php endif ?></div>
     <div class="field"><label class="f">Email</label><input class="input" value="<?= e($u['email']) ?>" readonly></div>
   </div>
-  <div class="field"><label class="f">Headline</label><input class="input" name="headline" maxlength="160" value="<?= e($u['headline']) ?>" placeholder="Software engineering student · UI/UX enthusiast"></div>
-  <div class="field"><label class="f">About you</label><textarea class="textarea" name="bio" maxlength="1000"><?= e($u['bio']) ?></textarea></div>
+  <div class="field"><label class="f">Headline</label><input class="input" name="headline" data-ai-writing="title" maxlength="160" value="<?= e($u['headline']) ?>" placeholder="Software engineering student · UI/UX enthusiast"></div>
+  <div class="field"><label class="f">About you</label><textarea class="textarea" name="bio" data-ai-writing="body" maxlength="1000"><?= e($u['bio']) ?></textarea></div>
+  <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
   <div class="grid3">
     <div class="field"><label class="f">Faculty / College</label><select class="select" name="faculty"><option value="">—</option><?php foreach (FACULTIES as $fc): ?><option <?= $u['faculty'] === $fc ? 'selected' : '' ?>><?= e($fc) ?></option><?php endforeach ?></select></div>
     <div class="field"><label class="f">Major</label><input class="input" name="major" value="<?= e($u['major']) ?>"></div>
@@ -58,7 +59,7 @@
     <h3><?= icon('compass', 18) ?> Mentor profile</h3>
     <p class="muted small">Turn this on to appear in the Mentors directory and receive mentorship requests from students.</p>
     <div class="field"><label class="f">Areas of expertise</label><input class="input" name="m_expertise" value="<?= e($m['expertise']) ?>" placeholder="Software architecture, databases, research methods"></div>
-    <div class="field"><label class="f">About your mentoring</label><textarea class="textarea" name="m_about"><?= e($m['about']) ?></textarea></div>
+    <div class="field"><label class="f">About your mentoring</label><textarea class="textarea" name="m_about" data-ai-writing="body"><?= e($m['about']) ?></textarea></div>
     <div class="grid2"><div class="field"><label class="f">Availability</label><input class="input" name="m_availability" value="<?= e($m['availability']) ?>" placeholder="Sun & Tue 2–4 pm"></div>
     <div class="field"><label class="f">Accepting mentees</label><label class="row" style="padding-top:10px;cursor:pointer"><input type="checkbox" name="m_active" value="1" <?= $m['active'] ? 'checked' : '' ?>> <span>Show me in the Mentors directory</span></label></div></div>
   <?php endif ?>

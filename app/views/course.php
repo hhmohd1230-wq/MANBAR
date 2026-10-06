@@ -40,9 +40,10 @@ if (!function_exists("yt_embed")) { function yt_embed(?string $u): ?string
 
     <?php if ($canEdit && !$lesson): ?>
     <div class="card"><div class="card-title"><h3><?= icon('plus', 18) ?> Add a lesson</h3></div>
-      <form method="post" action="<?= e(url('learn/' . $c['id'] . '/lessons')) ?>"><?= csrf_field() ?>
-        <div class="field"><label class="f">Lesson title</label><input class="input" name="title" required maxlength="200"></div>
-        <div class="field"><label class="f">Content</label><textarea class="textarea" name="content" rows="6" required placeholder="Write the lesson. Line breaks and links are supported."></textarea></div>
+      <form method="post" action="<?= e(url('learn/' . $c['id'] . '/lessons')) ?>" data-ai-writing-form data-ai-context="lesson"><?= csrf_field() ?>
+        <div class="field"><label class="f">Lesson title</label><input class="input" name="title" data-ai-writing="title" required maxlength="200"></div>
+        <div class="field"><label class="f">Content</label><textarea class="textarea" name="content" data-ai-writing="body" rows="6" required placeholder="Write the lesson. Line breaks and links are supported."></textarea></div>
+        <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
         <div class="field"><label class="f">Video link (optional, YouTube works best)</label><input class="input" name="video_url" placeholder="https://www.youtube.com/watch?v=…"></div>
         <button class="btn btn-primary" type="submit">Add lesson</button></form></div>
     <?php endif ?>

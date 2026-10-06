@@ -24,10 +24,10 @@
 
     <div class="card" id="reviews"><div class="card-title"><h3><?= icon('star', 18) ?> Reviews</h3></div>
       <?php if ($canReview): ?>
-        <form method="post" action="<?= e(url('marketplace/' . $s['id'] . '/review')) ?>" class="card flat mb" style="background:var(--g50)"><?= csrf_field() ?>
+        <form method="post" action="<?= e(url('marketplace/' . $s['id'] . '/review')) ?>" class="card flat mb" style="background:var(--g50)" data-ai-writing-form data-ai-context="marketplace review"><?= csrf_field() ?>
           <b>How was your order?</b>
           <div class="row" style="margin:8px 0"><select class="select" name="rating" style="width:auto"><?php for ($i = 5; $i >= 1; $i--): ?><option value="<?= $i ?>"><?= str_repeat('★', $i) ?> <?= $i ?></option><?php endfor ?></select></div>
-          <textarea class="textarea" name="comment" style="min-height:70px" placeholder="Share a few words (optional)"></textarea><button class="btn btn-primary mt" type="submit">Submit review</button>
+          <textarea class="textarea" name="comment" data-ai-writing="body" style="min-height:70px" placeholder="Share a few words (optional)"></textarea><div class="writing-assist" data-writing-assist hidden aria-live="polite"></div><button class="btn btn-primary mt" type="submit">Submit review</button>
         </form><?php endif ?>
       <div class="stack"><?php foreach ($reviews as $r): ?>
         <div class="row" style="align-items:flex-start;gap:12px"><?= avatar($r, 40) ?><div class="grow"><b><?= e($r['full_name']) ?></b> <?= stars((float) $r['rating']) ?> <span class="xs muted"><?= e(time_ago($r['created_at'])) ?></span><p style="margin:3px 0 0"><?= e($r['comment']) ?></p></div></div><?php endforeach ?>
@@ -43,7 +43,7 @@
       <?php elseif ($myReq && in_array($myReq['status'], ['pending', 'accepted'], true)): ?>
         <div class="chip st-<?= e($myReq['status']) ?>">Your request is <?= e($myReq['status']) ?></div><a class="btn btn-block mt" href="<?= e(url('messages/' . $s['user_id'])) ?>"><?= icon('message', 16) ?> Message provider</a>
       <?php elseif ($s['status'] === 'active'): ?>
-        <form method="post" action="<?= e(url('marketplace/' . $s['id'] . '/request')) ?>"><?= csrf_field() ?><label class="f">Message to the provider</label><textarea class="textarea" name="message" style="min-height:90px" placeholder="Describe what you need and when…"></textarea><button class="btn btn-primary btn-block mt" type="submit"><?= icon('send', 16) ?> Request service</button></form>
+        <form method="post" action="<?= e(url('marketplace/' . $s['id'] . '/request')) ?>" data-ai-writing-form data-ai-context="marketplace request"><?= csrf_field() ?><label class="f">Message to the provider</label><textarea class="textarea" name="message" data-ai-writing="body" style="min-height:90px" placeholder="Describe what you need and when…"></textarea><div class="writing-assist" data-writing-assist hidden aria-live="polite"></div><button class="btn btn-primary btn-block mt" type="submit"><?= icon('send', 16) ?> Request service</button></form>
       <?php endif ?>
     </div>
     <div class="card"><div class="card-title"><h3>Provider</h3></div>
