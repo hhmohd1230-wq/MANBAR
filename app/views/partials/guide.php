@@ -1,16 +1,17 @@
 <button class="guide-fab" id="guideFab" aria-label="Open MANBAR assistant" aria-expanded="false"><?= icon('sparkles', 20) ?><span>Ask MANBAR AI</span></button>
 <section class="guide" id="guide" aria-label="MANBAR assistant">
-  <div class="guide-head"><?= icon('sparkles', 26) ?><div class="grow"><h4>MANBAR Assistant</h4><small>Tell me your idea — I’ll point you to the right place</small></div><button class="icon-btn" id="guideClose" style="color:#fff" aria-label="Close"><?= icon('x', 20) ?></button></div>
+  <div class="guide-head"><?= icon('sparkles', 26) ?><div class="grow"><h4>MANBAR Assistant</h4><small>Writing, discovery and campus guidance</small></div><span class="guide-status"><i></i> Ready</span><button class="icon-btn" id="guideClose" aria-label="Close assistant"><?= icon('x', 20) ?></button></div>
   <div class="guide-msgs" id="guideMsgs">
-    <div class="gm bot">Hi <?= e(explode(' ', current_user()['full_name'])[0]) ?>! 👋 Describe what you want to do — for example <i>“I want to find teammates for a mobile app”</i> or <i>“I can design logos for other students”</i> — and I’ll tell you where to post it.
+    <div class="gm bot guide-welcome"><b>Hi <?= e(explode(' ', current_user()['full_name'])[0]) ?>. What can I help you move forward?</b><span>I can improve your writing, search real MANBAR projects and people, recommend mentors or courses, and open the right page.</span>
       <div class="sugg">
-        <button class="chip outline sm" data-sugg="I want to find teammates for a mobile app project">Find teammates</button>
-        <button class="chip outline sm" data-sugg="I can design logos and posters, 50 AED each">Offer a service</button>
-        <button class="chip outline sm" data-sugg="I need career advice from a mentor">Get a mentor</button>
+        <button class="chip outline sm" data-sugg="Find open mobile app projects that match me"><?= icon('rocket', 13) ?> Find projects</button>
+        <button class="chip outline sm" data-sugg="Find students who know UI design and Flutter"><?= icon('users', 13) ?> Find teammates</button>
+        <button class="chip outline sm" data-sugg="Recommend a mentor for career and capstone advice"><?= icon('compass', 13) ?> Find a mentor</button>
+        <button class="chip outline sm" data-sugg="Correct the grammar in: i want build a ai app for studnets"><?= icon('edit', 13) ?> Improve writing</button>
       </div>
     </div>
   </div>
-  <form class="guide-foot" id="guideForm"><textarea class="textarea" id="guideIn" rows="1" placeholder="What do you want to share or do?"></textarea><button class="btn btn-primary" type="submit" aria-label="Send"><?= icon('send', 18) ?></button></form>
+  <form class="guide-foot" id="guideForm"><label class="sr" for="guideIn">Ask MANBAR Assistant</label><textarea class="textarea" id="guideIn" rows="1" maxlength="4000" placeholder="Ask MANBAR about a goal or draft…"></textarea><button class="btn btn-primary" type="submit" aria-label="Send message"><?= icon('send', 18) ?></button></form>
 </section>
 <?php if (!empty($showTour)): ?>
 <div class="product-tour" id="productTour" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">

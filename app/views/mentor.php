@@ -11,9 +11,10 @@
     <h3><?= icon('compass', 18) ?> Request mentorship</h3>
     <?php if ($own): ?><p class="muted small">This is your public mentor profile.</p><a class="btn btn-block" href="<?= e(url('profile/edit')) ?>">Edit mentor profile</a>
     <?php elseif ($open): ?><div class="chip st-<?= e($open['status']) ?>">Your request is <?= e($open['status']) ?></div><a class="btn btn-block mt" href="<?= e(url('mentorship')) ?>">View in My mentorship</a>
-    <?php else: ?><form method="post" action="<?= e(url('mentors/' . $m['uid'] . '/request')) ?>"><?= csrf_field() ?>
-      <div class="field"><label class="f">What do you want help with?</label><input class="input" name="topic" required maxlength="200" placeholder="e.g. Choosing a capstone topic"></div>
-      <div class="field"><label class="f">Tell the mentor more</label><textarea class="textarea" name="message" placeholder="Background, goals and when you’re free…"></textarea></div>
+    <?php else: ?><form method="post" action="<?= e(url('mentors/' . $m['uid'] . '/request')) ?>" data-ai-writing-form data-ai-context="mentorship"><?= csrf_field() ?>
+      <div class="field"><label class="f">What do you want help with?</label><input class="input" name="topic" data-ai-writing="title" required maxlength="200" placeholder="e.g. Choosing a capstone topic"></div>
+      <div class="field"><label class="f">Tell the mentor more</label><textarea class="textarea" name="message" data-ai-writing="body" placeholder="Background, goals and when you’re free…"></textarea></div>
+      <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
       <button class="btn btn-primary btn-block" type="submit"><?= icon('send', 16) ?> Send request</button></form><?php endif ?>
   </div></aside>
 </div>

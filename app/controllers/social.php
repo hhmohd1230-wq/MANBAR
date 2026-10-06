@@ -240,21 +240,34 @@ function page_search(): void
 }
 
 /* ---------- AI assistant endpoints ---------- */
+function ai_request_guard(): void
+{
+    $now = time();
+    $hits = array_values(array_filter($_SESSION['ai_requests'] ?? [], fn($t) => (int) $t > $now - 60));
+    if (count($hits) >= 30) json_out(['ok' => false, 'error' => 'The assistant is receiving too many requests. Wait a moment and try again.'], 429);
+    $hits[] = $now;
+    $_SESSION['ai_requests'] = $hits;
+}
+
 function api_ai_assist(): void
 {
     $u = require_login();
+    ai_request_guard();
     $text = trim((string) ($_POST['text'] ?? ''));
     if (mb_strlen($text) < 4) json_out(['ok' => false, 'error' => 'Write a few words first.'], 422);
-    $r = ai_assist($text, $u);
+    $kind = in_array($_POST['kind'] ?? '', ['title', 'body', 'message'], true) ? (string) $_POST['kind'] : 'body';
+    $localOnly = (string) ($_POST['local_only'] ?? '') === '1';
+    $r = ai_assist($text, $u, 'assist', $kind, !$localOnly);
     json_out(['ok' => true] + $r);
 }
 function api_ai_guide(): void
 {
     $u = require_login();
+    ai_request_guard();
     $text = trim((string) ($_POST['text'] ?? ''));
     if (mb_strlen($text) < 3) json_out(['ok' => false, 'error' => 'Tell me what you want to do.'], 422);
-    $r = ai_assist($text, $u);
-    $p = $r['route']['primary'];
-    $reply = "I'd put this under **{$p['label']}**. {$p['reason']}";
-    json_out(['ok' => true, 'reply' => $reply, 'route' => $r['route'], 'corrected' => $r['fix']['corrected']]);
+    $r = ai_guide_assist($text, $u);
+    json_out(['ok' => true, 'reply' => $r['reply'], 'intent' => $r['intent'], 'route' => $r['route'], 'corrected' => $r['fix']['corrected'],
+        'changes' => $r['fix']['changes'], 'engine' => $r['fix']['engine'], 'results' => $r['results'],
+        'suggestions' => $r['suggestions'], 'capabilities' => $r['capabilities']]);
 }

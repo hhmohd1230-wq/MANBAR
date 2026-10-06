@@ -6,9 +6,10 @@
     <?php if ($mine || is_admin()): ?>
     <details class="card" id="edit" <?= str_contains($_SERVER['REQUEST_URI'] ?? '', '#edit') ? 'open' : '' ?>>
       <summary style="cursor:pointer;font-weight:700"><?= icon('edit', 16) ?> Edit this post</summary>
-      <form method="post" action="<?= e(url('post/' . $p['id'] . '/update')) ?>" class="mt"><?= csrf_field() ?>
-        <div class="field"><label class="f">Title</label><input class="input" name="title" value="<?= e($p['title']) ?>" maxlength="200" required></div>
-        <div class="field"><label class="f">Details</label><textarea class="textarea" name="body" required><?= e($p['body']) ?></textarea></div>
+      <form method="post" action="<?= e(url('post/' . $p['id'] . '/update')) ?>" class="mt" data-ai-writing-form data-ai-context="post edit"><?= csrf_field() ?>
+        <div class="field"><label class="f">Title</label><input class="input" name="title" data-ai-writing="title" value="<?= e($p['title']) ?>" maxlength="200" required></div>
+        <div class="field"><label class="f">Details</label><textarea class="textarea" name="body" data-ai-writing="body" required><?= e($p['body']) ?></textarea></div>
+        <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
         <div class="field"><label class="f">Tags (comma separated)</label><input class="input" name="tags" value="<?= e($p['tags']) ?>"></div>
         <button class="btn btn-primary" type="submit">Save changes</button>
       </form>
