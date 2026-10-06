@@ -6,7 +6,7 @@
  *  3) ai_search_catalog(): searches MANBAR's own projects, people, mentors,
  *     courses and services and ranks them against the request and user profile.
  * Works offline with built-in rules. If configured, Gemini is used first, then
- * OpenAI and Claude, with the rules as the final fallback.
+ * Groq, OpenAI and Claude, with the rules as the final fallback.
  */
 
 const AI_TARGETS = [
@@ -615,6 +615,92 @@ function ai_gemini_form_draft(string $context, string $title, string $body = '',
     ];
 }
 
+/** Send a JSON-only request through Groq's OpenAI-compatible Chat API. */
+function ai_groq_generate(string $instructions, string $input, int $maxTokens = 900): ?array
+{
+    $key = trim((string) cfg('groq_api_key'));
+    $model = trim((string) cfg('groq_model'));
+    if ($key === '' || $model === '' || !function_exists('curl_init')) return null;
+
+    $payload = [
+        'model' => $model,
+        'temperature' => 0.2,
+        'max_completion_tokens' => $maxTokens,
+        'response_format' => ['type' => 'json_object'],
+        'messages' => [
+            ['role' => 'system', 'content' => $instructions . ' Return one valid JSON object and no markdown.'],
+            ['role' => 'user', 'content' => $input],
+        ],
+    ];
+    $ch = curl_init('https://api.groq.com/openai/v1/chat/completions');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 25,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ['content-type: application/json', 'authorization: Bearer ' . $key],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    $res = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if (!$res || $status < 200 || $status >= 300) return null;
+
+    $json = json_decode($res, true);
+    $outputText = trim((string) ($json['choices'][0]['message']['content'] ?? ''));
+    if ($outputText === '') return null;
+    $out = json_decode($outputText, true);
+    if (!is_array($out)) return null;
+    $out['_engine'] = 'groq';
+    return $out;
+}
+
+function ai_groq(string $text, string $mode, ?array $user, string $style = 'body'): ?array
+{
+    $targets = [];
+    foreach (AI_TARGETS as $k => $v) $targets[] = "$k = {$v['label']}: {$v['hint']}";
+    $styleRule = $style === 'title'
+        ? 'The text is a title: keep it concise and do not add a final period.'
+        : 'Keep the result concise, natural and suitable for a university community.';
+    $instructions = "You are MANBAR's expert writing assistant. Rewrite the user's text as fluent, natural writing in the same language. "
+        . "Infer obvious misspellings from context, fix grammar and punctuation, remove awkward repetition, and choose clearer vocabulary. "
+        . "Preserve the intended meaning and tone. Never invent facts, promises, prices, deadlines, qualifications or project details. {$styleRule} "
+        . 'Return JSON with corrected, target, reason and tags. The target must be one of: ' . implode(', ', array_keys(AI_TARGETS))
+        . ". Suggest at most five short lower-case tags. Target guide:\n" . implode("\n", $targets);
+    $out = ai_groq_generate($instructions, $text);
+    if (!is_array($out) || trim((string) ($out['corrected'] ?? '')) === '') return null;
+    if (!isset(AI_TARGETS[(string) ($out['target'] ?? '')])) $out['target'] = route_idea($text, $user)['primary']['key'];
+    $out['tags'] = isset($out['tags']) && is_array($out['tags']) ? array_slice(array_map('strval', $out['tags']), 0, 5) : [];
+    return $out;
+}
+
+function ai_groq_form_draft(string $context, string $title, string $body = '', array $meta = []): ?array
+{
+    $context = in_array($context, ['project', 'service', 'course'], true) ? $context : 'project';
+    $instructions = "You are MANBAR's university writing assistant. Create a polished {$context} form draft from the student's rough wording. "
+        . "Correct spelling and grammar, choose clear natural vocabulary, and preserve the student's meaning. "
+        . "Do not invent prices, deadlines, qualifications, technologies, deliverables or other factual details the student did not provide. "
+        . 'The title must be concise without a final period. The description should be useful, confident and easy to personalise. '
+        . 'Return JSON with exactly two string fields: title and body.';
+    $input = json_encode([
+        'context' => $context,
+        'rough_title' => mb_substr(trim($title), 0, 200),
+        'rough_description' => mb_substr(trim($body), 0, 4000),
+        'category' => mb_substr(trim((string) ($meta['category'] ?? '')), 0, 100),
+        'level' => mb_substr(trim((string) ($meta['level'] ?? '')), 0, 50),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $out = ai_groq_generate($instructions, $input, 1200);
+    $cleanTitle = trim((string) ($out['title'] ?? ''));
+    $cleanBody = trim((string) ($out['body'] ?? ''));
+    if ($cleanTitle === '' || $cleanBody === '') return null;
+    return [
+        'title' => mb_substr($cleanTitle, 0, 200),
+        'body' => mb_substr($cleanBody, 0, 4000),
+        'engine' => 'groq',
+        'generated' => trim($body) === '',
+    ];
+}
+
 function ai_openai(string $text, string $mode, ?array $user, string $style = 'body'): ?array
 {
     $key = cfg('openai_api_key');
@@ -708,7 +794,7 @@ function ai_assist(string $text, ?array $user, string $mode = 'both', string $st
     $text = mb_substr($text, 0, 4000);
     $fix = fix_writing($text, $style);
     $route = route_idea($text, $user);
-    $llm = $allowLlm ? (ai_gemini($text, $mode, $user, $style) ?? ai_openai($text, $mode, $user, $style) ?? ai_llm($text, $mode, $user, $style)) : null;
+    $llm = $allowLlm ? (ai_gemini($text, $mode, $user, $style) ?? ai_groq($text, $mode, $user, $style) ?? ai_openai($text, $mode, $user, $style) ?? ai_llm($text, $mode, $user, $style)) : null;
     if ($llm) {
         $fix = ['corrected' => (string) $llm['corrected'], 'changes' => [['from' => '…', 'to' => '…', 'why' => 'Improved by AI']], 'engine' => (string) ($llm['_engine'] ?? 'ai')];
         $k = $llm['target'] ?? '';

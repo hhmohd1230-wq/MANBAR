@@ -14,6 +14,8 @@ return [
     'admin_emails'     => ['202020280@aau.ac.ae'],
     'gemini_api_key'   => '',         // optional; free-tier language review (keep private)
     'gemini_model'     => 'gemini-3.5-flash-lite',
+    'groq_api_key'     => '',         // optional; free-tier fallback (keep private)
+    'groq_model'       => 'openai/gpt-oss-120b',
     'openai_api_key'   => '',         // optional; preferred for deep writing review
     'openai_model'     => 'gpt-6.1-sol',
     'anthropic_api_key' => '',         // optional
