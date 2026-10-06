@@ -325,7 +325,7 @@
         const checked = await Promise.all(fields.map(field => {
           const text = field.value.trim();
           return text.length >= 3
-            ? api('/api/ai/assist', { text, kind: field.dataset.aiWriting, local_only: 1 })
+            ? api('/api/ai/assist', { text, kind: field.dataset.aiWriting, local_only: force ? 0 : 1 })
             : Promise.resolve(null);
         }));
         if (ownRequest !== requestNo || signature() !== sig) return;
@@ -339,8 +339,9 @@
           return;
         }
         const count = suggestions.reduce((n, item) => n + Math.max(1, item.changes.length), 0);
+        const usedLanguageAI = checked.some(result => result?.fix?.engine === 'claude');
         panel.className = 'writing-assist has-suggestions';
-        panel.innerHTML = `<div class="writing-assist-head"><span>${icon('sparkles', 17)} <b>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</b></span><span class="writing-assist-local">Works without an API</span></div>
+        panel.innerHTML = `<div class="writing-assist-head"><span>${icon('sparkles', 17)} <b>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</b></span><span class="writing-assist-local">${usedLanguageAI ? 'AI language review' : 'Local writing review'}</span></div>
           <div class="writing-assist-previews">${suggestions.map(item => `<div><span>${item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description'}</span><p>${esc(item.corrected)}</p></div>`).join('')}</div>
           <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-writing-apply>${icon('check', 14)} Apply improvements</button><button class="btn btn-ghost btn-sm" type="button" data-writing-dismiss>Keep my wording</button></div>`;
         $('[data-writing-apply]', panel).onclick = () => {
