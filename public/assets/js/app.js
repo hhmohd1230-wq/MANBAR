@@ -339,7 +339,7 @@
           return;
         }
         const count = suggestions.reduce((n, item) => n + Math.max(1, item.changes.length), 0);
-        const usedLanguageAI = checked.some(result => ['openai', 'claude'].includes(result?.fix?.engine));
+        const usedLanguageAI = checked.some(result => ['gemini', 'openai', 'claude'].includes(result?.fix?.engine));
         panel.className = 'writing-assist has-suggestions';
         panel.innerHTML = `<div class="writing-assist-head"><span>${icon('sparkles', 17)} <b>${count} writing ${count === 1 ? 'improvement' : 'improvements'} ready</b></span><span class="writing-assist-local">${usedLanguageAI ? 'AI language review' : 'Local writing review'}</span></div>
           <div class="writing-assist-previews">${suggestions.map(item => `<div><span>${item.field.dataset.aiWriting === 'title' ? 'Title' : 'Description'}</span><p>${esc(item.corrected)}</p></div>`).join('')}</div>
@@ -385,7 +385,7 @@
       try {
         const result = await api('/api/ai/assist', {
           action: 'draft', context: form.dataset.aiContext || 'project', title: titleValue, body: bodyValue,
-          category: $('[name="category"]', form)?.value || '', level: $('[name="level"]', form)?.value || '', local_only: 1
+          category: $('[name="category"]', form)?.value || '', level: $('[name="level"]', form)?.value || '', local_only: 0
         });
         if (draftRequest !== requestNo || signature() !== sourceSignature) {
           panel.hidden = true;
@@ -394,7 +394,8 @@
         }
         const draft = result.draft;
         panel.className = 'writing-assist has-suggestions is-draft';
-        panel.innerHTML = `<div class="writing-assist-head"><span>${icon('wand', 17)} <b>${draft.generated ? 'Your draft is ready' : 'Your writing is polished'}</b></span><span class="writing-assist-local">Smart draft · no API required</span></div>
+        const draftSource = draft.engine === 'gemini' ? 'Gemini AI draft' : 'Smart local draft';
+        panel.innerHTML = `<div class="writing-assist-head"><span>${icon('wand', 17)} <b>${draft.generated ? 'Your draft is ready' : 'Your writing is polished'}</b></span><span class="writing-assist-local">${draftSource}</span></div>
           <div class="writing-assist-previews"><div><span>Title</span><p>${esc(draft.title)}</p></div><div><span>Description</span><p>${esc(draft.body)}</p></div></div>
           <p class="writing-assist-note">Review the details before publishing. MANBAR AI never submits the form for you.</p>
           <div class="writing-assist-actions"><button class="btn btn-primary btn-sm" type="button" data-draft-apply>${icon('check', 14)} Use this draft</button><button class="btn btn-ghost btn-sm" type="button" data-writing-dismiss>Keep editing</button></div>`;
@@ -445,7 +446,7 @@
       const oldLabel = button.getAttribute('aria-label');
       button.setAttribute('aria-label', 'Improving writing');
       try {
-        const result = await api('/api/ai/assist', { text: original, kind: field.dataset.aiWriting || 'message', local_only: 1 });
+        const result = await api('/api/ai/assist', { text: original, kind: field.dataset.aiWriting || 'message', local_only: 0 });
         const corrected = result.fix?.corrected || original;
         if (corrected === original) {
           toast('Your writing already looks clear.');

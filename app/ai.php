@@ -5,7 +5,8 @@
  *  2) route_idea(): reads what the student describes and suggests the right place.
  *  3) ai_search_catalog(): searches MANBAR's own projects, people, mentors,
  *     courses and services and ranks them against the request and user profile.
- * Works offline with built-in rules. If configured, OpenAI is used first, then Claude, with the rules as the fallback.
+ * Works offline with built-in rules. If configured, Gemini is used first, then
+ * OpenAI and Claude, with the rules as the final fallback.
  */
 
 const AI_TARGETS = [
@@ -24,7 +25,7 @@ const AI_TARGETS = [
 ];
 
 const AI_KEYWORDS = [
-    'team'        => ['looking for' => 3, 'need a' => 2, 'need someone' => 3, 'teammate' => 4, 'team members' => 4, 'join my' => 3, 'join us' => 3, 'partner' => 2, 'co-founder' => 4, 'cofounder' => 4, 'developer' => 1, 'designer' => 1, 'who wants to' => 3, 'anyone want to' => 3, 'collaborate' => 2],
+    'team'        => ['looking for' => 3, 'need a' => 2, 'need someone' => 3, 'teammate' => 4, 'team members' => 4, 'join my' => 3, 'join us' => 3, 'partner' => 2, 'co-founder' => 4, 'cofounder' => 4, 'developer' => 1, 'designer' => 1, 'who wants to' => 3, 'anyone want to' => 3, 'collaborate' => 2, 'work with me' => 4, 'work with us' => 4, 'help me with it' => 3, 'help with my project' => 4],
     'question'    => ['how do' => 3, 'how can' => 3, 'how to' => 3, 'why ' => 1, 'what is' => 2, 'does anyone' => 3, 'anyone know' => 3, 'help me' => 3, 'can someone' => 3, 'i dont understand' => 3, 'error' => 2, 'stuck' => 2, '?' => 2],
     'service'     => ['i can design' => 4, 'i will' => 2, 'i offer' => 4, 'for hire' => 4, 'i can build' => 3, 'aed' => 3, 'price' => 3, 'per hour' => 3, 'freelance' => 3, 'logo' => 2, 'translation' => 2, 'proofreading' => 2, 'selling' => 3, 'i can help you with' => 3, 'commission' => 2],
     'resource'    => ['tutorial' => 3, 'cheat sheet' => 4, 'notes' => 2, 'slides' => 2, 'pdf' => 2, 'link to' => 2, 'useful' => 1, 'free resource' => 4, 'recommend' => 1, 'book' => 1, 'roadmap' => 2],
@@ -103,6 +104,7 @@ const AI_GRAMMAR_PATTERNS = [
     '/\bwant learn\b/i' => 'want to learn',
     '/\bwant find\b/i' => 'want to find',
     '/\bwant (?:to be able to make )?people (?:to )?work with me\b/i' => 'want other people to collaborate with me',
+    '/\band (?:make )?people (?:to )?work with me\b/i' => 'and collaborate with other people',
     '/\bwant people to be able to help me (?:in|with) it\b/i' => 'want people to help me with it',
     '/\bhelp me in it\b/i' => 'help me with it',
     '/\bmake an? math project\b/i' => 'create a math project',
@@ -503,6 +505,116 @@ function ai_guide_suggestions(string $text, array $results): array
 }
 
 /* ============ Optional language-model providers ============ */
+/**
+ * Send a structured request to Gemini without exposing the key to the browser.
+ * The API key is carried in a header rather than the URL so it is less likely
+ * to appear in web-server or proxy logs.
+ */
+function ai_gemini_generate(string $instructions, string $input, array $schema, int $maxTokens = 900): ?array
+{
+    $key = trim((string) cfg('gemini_api_key'));
+    $model = trim((string) cfg('gemini_model'));
+    if ($key === '' || $model === '' || !function_exists('curl_init')) return null;
+
+    $payload = [
+        'system_instruction' => ['parts' => [['text' => $instructions]]],
+        'contents' => [[
+            'role' => 'user',
+            'parts' => [['text' => $input]],
+        ]],
+        'generationConfig' => [
+            'temperature' => 0.2,
+            'maxOutputTokens' => $maxTokens,
+            'responseMimeType' => 'application/json',
+            'responseSchema' => $schema,
+        ],
+    ];
+    $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent';
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 25,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ['content-type: application/json', 'x-goog-api-key: ' . $key],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+    ]);
+    $res = curl_exec($ch);
+    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if (!$res || $status < 200 || $status >= 300) return null;
+
+    $json = json_decode($res, true);
+    $parts = $json['candidates'][0]['content']['parts'] ?? [];
+    $outputText = '';
+    foreach ($parts as $part) $outputText .= (string) ($part['text'] ?? '');
+    if ($outputText === '') return null;
+    $out = json_decode($outputText, true);
+    if (!is_array($out)) return null;
+    $out['_engine'] = 'gemini';
+    return $out;
+}
+
+function ai_gemini(string $text, string $mode, ?array $user, string $style = 'body'): ?array
+{
+    $targets = [];
+    foreach (AI_TARGETS as $k => $v) $targets[] = "$k = {$v['label']}: {$v['hint']}";
+    $styleRule = $style === 'title'
+        ? 'The text is a title: keep it concise and do not add a final period.'
+        : 'Keep the result concise, natural and suitable for a university community.';
+    $instructions = "You are MANBAR's expert English writing assistant. Rewrite the user's text as fluent, natural writing in the same language. "
+        . "Infer obvious misspellings from context, fix grammar and punctuation, remove awkward repetition, and choose clearer vocabulary. "
+        . "Preserve the intended meaning and tone. Never invent facts, promises, prices, deadlines, qualifications or project details. {$styleRule}\n"
+        . "Choose the most suitable MANBAR target and suggest up to five short lower-case tags. Targets:\n" . implode("\n", $targets);
+    $schema = [
+        'type' => 'OBJECT',
+        'properties' => [
+            'corrected' => ['type' => 'STRING'],
+            'target' => ['type' => 'STRING', 'enum' => array_keys(AI_TARGETS)],
+            'reason' => ['type' => 'STRING'],
+            'tags' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
+        ],
+        'required' => ['corrected', 'target', 'reason', 'tags'],
+    ];
+    $out = ai_gemini_generate($instructions, $text, $schema);
+    if (!is_array($out) || trim((string) ($out['corrected'] ?? '')) === '') return null;
+    return $out;
+}
+
+function ai_gemini_form_draft(string $context, string $title, string $body = '', array $meta = []): ?array
+{
+    $context = in_array($context, ['project', 'service', 'course'], true) ? $context : 'project';
+    $instructions = "You are MANBAR's university writing assistant. Create a polished {$context} form draft from the student's rough wording. "
+        . "Correct spelling and grammar, choose clear natural vocabulary, and preserve the student's meaning. "
+        . "Do not invent prices, deadlines, qualifications, technologies, deliverables or other factual details the student did not provide. "
+        . "The title must be concise without a final period. The description should be useful, confident and easy to personalise. Return only the structured result.";
+    $input = json_encode([
+        'context' => $context,
+        'rough_title' => mb_substr(trim($title), 0, 200),
+        'rough_description' => mb_substr(trim($body), 0, 4000),
+        'category' => mb_substr(trim((string) ($meta['category'] ?? '')), 0, 100),
+        'level' => mb_substr(trim((string) ($meta['level'] ?? '')), 0, 50),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $schema = [
+        'type' => 'OBJECT',
+        'properties' => [
+            'title' => ['type' => 'STRING'],
+            'body' => ['type' => 'STRING'],
+        ],
+        'required' => ['title', 'body'],
+    ];
+    $out = ai_gemini_generate($instructions, $input, $schema, 1200);
+    $cleanTitle = trim((string) ($out['title'] ?? ''));
+    $cleanBody = trim((string) ($out['body'] ?? ''));
+    if ($cleanTitle === '' || $cleanBody === '') return null;
+    return [
+        'title' => mb_substr($cleanTitle, 0, 200),
+        'body' => mb_substr($cleanBody, 0, 4000),
+        'engine' => 'gemini',
+        'generated' => trim($body) === '',
+    ];
+}
+
 function ai_openai(string $text, string $mode, ?array $user, string $style = 'body'): ?array
 {
     $key = cfg('openai_api_key');
@@ -596,7 +708,7 @@ function ai_assist(string $text, ?array $user, string $mode = 'both', string $st
     $text = mb_substr($text, 0, 4000);
     $fix = fix_writing($text, $style);
     $route = route_idea($text, $user);
-    $llm = $allowLlm ? (ai_openai($text, $mode, $user, $style) ?? ai_llm($text, $mode, $user, $style)) : null;
+    $llm = $allowLlm ? (ai_gemini($text, $mode, $user, $style) ?? ai_openai($text, $mode, $user, $style) ?? ai_llm($text, $mode, $user, $style)) : null;
     if ($llm) {
         $fix = ['corrected' => (string) $llm['corrected'], 'changes' => [['from' => '…', 'to' => '…', 'why' => 'Improved by AI']], 'engine' => (string) ($llm['_engine'] ?? 'ai')];
         $k = $llm['target'] ?? '';

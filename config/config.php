@@ -52,7 +52,9 @@ $config = [
     // These emails become administrators on first login.
     'admin_emails' => ['202020280@aau.ac.ae'],
 
-    // Optional: real language AI. OpenAI is tried first, then Claude, then the local rules.
+    // Optional: real language AI. Gemini is tried first, then OpenAI, Claude and the local rules.
+    'gemini_api_key'    => $env('GEMINI_API_KEY', ''),
+    'gemini_model'      => $env('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
     'openai_api_key'    => $env('OPENAI_API_KEY', ''),
     'openai_model'      => $env('OPENAI_MODEL', 'gpt-6.1-sol'),
     'anthropic_api_key' => $env('ANTHROPIC_API_KEY', ''),

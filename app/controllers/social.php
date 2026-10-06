@@ -254,20 +254,23 @@ function api_ai_assist(): void
     $u = require_login();
     ai_request_guard();
     $action = (string) ($_POST['action'] ?? 'correct');
+    $localOnly = (string) ($_POST['local_only'] ?? '') === '1';
     if ($action === 'draft') {
         $title = trim((string) ($_POST['title'] ?? ''));
         $body = trim((string) ($_POST['body'] ?? ''));
         if (mb_strlen($title . $body) < 3) json_out(['ok' => false, 'error' => 'Add a short title or idea first.'], 422);
-        $draft = ai_form_draft((string) ($_POST['context'] ?? 'project'), $title, $body, [
+        $context = (string) ($_POST['context'] ?? 'project');
+        $meta = [
             'category' => (string) ($_POST['category'] ?? ''),
             'level' => (string) ($_POST['level'] ?? ''),
-        ]);
+        ];
+        $draft = !$localOnly ? ai_gemini_form_draft($context, $title, $body, $meta) : null;
+        $draft ??= ai_form_draft($context, $title, $body, $meta);
         json_out(['ok' => true, 'draft' => $draft]);
     }
     $text = trim((string) ($_POST['text'] ?? ''));
     if (mb_strlen($text) < 4) json_out(['ok' => false, 'error' => 'Write a few words first.'], 422);
     $kind = in_array($_POST['kind'] ?? '', ['title', 'body', 'message'], true) ? (string) $_POST['kind'] : 'body';
-    $localOnly = (string) ($_POST['local_only'] ?? '') === '1';
     $r = ai_assist($text, $u, 'assist', $kind, !$localOnly);
     json_out(['ok' => true] + $r);
 }
