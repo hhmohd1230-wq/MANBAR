@@ -275,7 +275,9 @@ function api_ai_assist(): void
     if (mb_strlen($text) < 4) json_out(['ok' => false, 'error' => 'Write a few words first.'], 422);
     $kind = in_array($_POST['kind'] ?? '', ['title', 'body', 'message'], true) ? (string) $_POST['kind'] : 'body';
     $r = ai_assist($text, $u, 'assist', $kind, !$localOnly, $tone, $context);
-    json_out(['ok' => true] + $r);
+    $discoveryText = trim($text . ' ' . (string) ($r['fix']['corrected'] ?? '') . ' ' . $context);
+    $results = $localOnly ? [] : ai_search_catalog($discoveryText, $u, 4, true);
+    json_out(['ok' => true] + $r + ['results' => $results]);
 }
 function api_ai_guide(): void
 {

@@ -3,8 +3,8 @@
  * MANBAR Assistant.
  *  1) fix_writing(): corrects spelling, common grammar, casing and punctuation.
  *  2) route_idea(): reads what the student describes and suggests the right place.
- *  3) ai_search_catalog(): searches MANBAR's own projects, people, mentors,
- *     courses and services and ranks them against the request and user profile.
+ *  3) ai_search_catalog(): searches MANBAR's own posts, projects, people,
+ *     mentors, courses and services and ranks them against the request and profile.
  * Works offline with built-in rules. If configured, Gemini is used first, then
  * Groq, OpenAI and Claude, with the rules as the final fallback.
  */
@@ -55,7 +55,7 @@ const AI_TYPOS = [
     'suprise' => 'surprise', 'tecnology' => 'technology', 'techonology' => 'technology', 'thru' => 'through', 'truely' => 'truly', 'unfortunatly' => 'unfortunately',
     'wierd' => 'weird', 'writting' => 'writing', 'alot' => 'a lot', 'proffesor' => 'professor', 'profesor' => 'professor', 'univercity' => 'university',
     'universty' => 'university', 'studen' => 'student', 'studnet' => 'student', 'budy' => 'buddy', 'maxth' => 'math', 'proekt' => 'project',
-    'probject' => 'project', 'projet' => 'project', 'projcet' => 'project', 'ancasonte' => 'a capstone', 'casonte' => 'capstone', 'developper' => 'developer',
+    'probject' => 'project', 'projet' => 'project', 'projcet' => 'project', 'ancasonte' => 'a capstone', 'casonte' => 'capstone', 'developper' => 'developer', 'devleoping' => 'developing',
     'programing' => 'programming', 'langauge' => 'language', 'aplication' => 'application', 'applicaton' => 'application', 'websit' => 'website', 'wensite' => 'website',
     'desing' => 'design', 'colaborate' => 'collaborate', 'colaboration' => 'collaboration', 'collabration' => 'collaboration', 'opertunity' => 'opportunity',
     'oppurtunity' => 'opportunity', 'oportunity' => 'opportunity', 'abilty' => 'ability', 'availble' => 'available', 'avaliable' => 'available', 'teem' => 'team',
@@ -137,7 +137,7 @@ const AI_VOCAB_PATTERNS = [
 ];
 
 const AI_STOP_WORDS = [
-    'a','an','and','are','as','at','be','best','but','by','can','do','for','from','get','give','has','have','help','i','in','is','it','me','my','of','on','or','our','please','show','some','that','the','their','them','this','to','want','we','what','where','which','who','with','you','your',
+    'a','am','an','and','are','as','at','be','best','but','by','can','do','for','from','get','give','good','great','has','have','help','i','in','is','it','me','my','of','on','or','our','please','show','some','that','the','their','them','this','to','want','we','what','where','which','who','with','work','you','your',
     'find','search','looking','recommend','recommendation','need','inside','manbar','open','match','project','projects',
 ];
 
@@ -344,6 +344,7 @@ function suggest_tags(string $text): array
 function ai_terms(string $text): array
 {
     $text = mb_strtolower($text);
+    $text = preg_replace(['/\bfront[\s-]?end\b/u', '/\bback[\s-]?end\b/u', '/\bfull[\s-]?stack\b/u'], ['frontend', 'backend', 'fullstack'], $text);
     $parts = preg_split('/[^\p{L}\p{N}+#.-]+/u', $text, -1, PREG_SPLIT_NO_EMPTY);
     $terms = [];
     foreach ($parts as $word) {
@@ -354,7 +355,10 @@ function ai_terms(string $text): array
     $expansions = [
         'app' => ['mobile', 'android', 'ios', 'flutter'], 'mobile' => ['app', 'flutter'],
         'website' => ['web', 'frontend', 'backend'], 'web' => ['website', 'html', 'css', 'javascript'],
-        'coding' => ['programming', 'software', 'developer'], 'developer' => ['programming', 'software'],
+        'coding' => ['programming', 'software', 'developer'], 'developer' => ['development', 'programming', 'software'],
+        'developing' => ['development', 'developer', 'programming', 'software'], 'development' => ['developer', 'programming', 'software'],
+        'frontend' => ['front-end', 'front end', 'web', 'ui', 'react', 'javascript', 'html', 'css'],
+        'backend' => ['back-end', 'back end', 'server', 'api', 'database'], 'fullstack' => ['frontend', 'backend', 'web'],
         'design' => ['ui', 'ux', 'graphic'], 'designer' => ['design', 'ui', 'ux'],
         'data' => ['analytics', 'database', 'sql', 'python'], 'ai' => ['machine learning', 'ml', 'data'],
         'business' => ['marketing', 'startup', 'entrepreneurship'], 'career' => ['cv', 'resume', 'internship'],
@@ -381,7 +385,8 @@ function ai_match_score(array $terms, array $fields, array $weights): array
     $matches = [];
     foreach ($terms as $term) {
         foreach ($fields as $i => $field) {
-            if ($field !== '' && mb_stripos($field, $term) !== false) {
+            $pattern = '/(?<![\p{L}\p{N}])' . preg_quote($term, '/') . '(?:s|es)?(?![\p{L}\p{N}])/iu';
+            if ($field !== '' && preg_match($pattern, $field)) {
                 $score += $weights[$i] ?? 1;
                 $matches[$term] = true;
                 break;
@@ -393,7 +398,7 @@ function ai_match_score(array $terms, array $fields, array $weights): array
 
 function ai_search_requested(string $text): bool
 {
-    return (bool) preg_match('/\b(find|search|show|recommend|suggest|match|looking for|available|open|join|best|need a|need an|need someone|who can|where can)\b/iu', $text);
+    return (bool) preg_match('/\b(find|search|show|recommend|suggest|match|looking for|looking to join|available|open|join|contribute|collaborate|best|need a|need an|need someone|who can|where can|i can help|i am good at|i(?:\x{2019}|\x{27})m good at|my skills|i know|experienced in|experience with|available to help)\b/iu', $text);
 }
 
 function ai_requested_catalogs(string $text): array
@@ -401,8 +406,9 @@ function ai_requested_catalogs(string $text): array
     $t = mb_strtolower($text);
     $catalogs = [];
     $tests = [
-        'projects' => '/\b(project|projects|app|website|platform|capstone|startup|prototype|build|join|team)\b/u',
-        'people' => '/\b(people|person|student|students|classmate|developer|designer|teammate|teammates|collaborator|partner)\b/u',
+        'posts' => '/\b(post|posts|idea|ideas|request|requests|looking for|looking to join|need someone|need a|teammate|teammates|collaborat\w*|contribut\w*|develop\w*|designer|join|help)\b/u',
+        'projects' => '/\b(project|projects|app|website|platform|capstone|startup|prototype|build|join|team|frontend|backend|fullstack|develop\w*)\b/u',
+        'people' => '/\b(people|person|student|students|classmate|develop\w*|designer|teammate|teammates|collaborator|partner|frontend|backend|fullstack)\b/u',
         'mentors' => '/\b(mentor|mentors|guidance|career advice|supervisor|expert|coach)\b/u',
         'courses' => '/\b(course|courses|learn|learning|study|lesson|lessons|tutorial|training)\b/u',
         'services' => '/\b(service|services|hire|logo|poster|translation|photography|video editing|freelance)\b/u',
@@ -421,24 +427,44 @@ function ai_result_reason(array $matches, bool $personal): string
  * Search only approved, visible MANBAR records. The language model never sees
  * database credentials and never writes or executes SQL.
  */
-function ai_search_catalog(string $text, array $user, int $limit = 6): array
+function ai_search_catalog(string $text, array $user, int $limit = 6, bool $force = false): array
 {
-    if (!ai_search_requested($text)) return [];
+    if (!$force && !ai_search_requested($text)) return [];
     $catalogs = ai_requested_catalogs($text);
     $terms = ai_terms($text);
     $personal = (bool) preg_match('/\b(for me|match me|my skills|my major|suitable|recommend|best for me)\b/iu', $text);
+    $contributorIntent = (bool) preg_match('/\b(i can help|i am good at|i(?:\x{2019}|\x{27})m good at|my skills|i know|experienced in|experience with|available to help|looking to join|contribute|collaborate)\b/iu', $text);
     $profileTerms = $personal ? ai_profile_terms($user) : [];
     $all = [];
+
+    if (in_array('posts', $catalogs, true)) {
+        $rows = qall("SELECT p.id,p.type,p.title,p.body,p.tags,p.created_at,u.full_name AS author_name
+            FROM posts p JOIN users u ON u.id=p.user_id
+            WHERE p.status='visible' AND p.share_of IS NULL AND p.user_id<>?
+            ORDER BY p.pinned DESC,p.id DESC LIMIT 100", [(int) $user['id']]);
+        foreach ($rows as $r) {
+            if ($contributorIntent && !in_array((string) $r['type'], ['team', 'idea', 'question'], true)) continue;
+            $m = ai_match_score($terms, [(string) $r['title'], (string) $r['tags'], (string) $r['body'], (string) $r['type']], [7, 6, 3, 1]);
+            if ($m['score'] <= 0) continue;
+            $boost = $contributorIntent ? match ((string) $r['type']) { 'team' => 18, 'idea' => 4, 'question' => 2, default => 0 } : 0;
+            $typeLabel = POST_TYPES[(string) $r['type']]['label'] ?? ucfirst((string) $r['type']);
+            $tags = implode(', ', csv_list((string) $r['tags']));
+            $all[] = ['type' => 'post', 'title' => $r['title'], 'description' => excerpt((string) $r['body'], 105),
+                'meta' => $typeLabel . ' · ' . $r['author_name'] . ($tags !== '' ? ' · ' . $tags : ''),
+                'reason' => ai_result_reason($m['matches'], false), 'url' => url('post/' . $r['id']), 'score' => 3 + $boost + $m['score']];
+        }
+    }
 
     if (in_array('projects', $catalogs, true)) {
         $rows = qall("SELECT p.id,p.title,p.description,p.needed_skills,p.status,p.max_members,u.full_name AS owner_name,
             (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id=p.id) AS members
-            FROM projects p JOIN users u ON u.id=p.owner_id WHERE p.hidden=0 AND p.status IN ('open','in_progress') ORDER BY p.id DESC LIMIT 80");
+            FROM projects p JOIN users u ON u.id=p.owner_id WHERE p.hidden=0 AND p.owner_id<>? AND p.status IN ('open','in_progress') ORDER BY p.id DESC LIMIT 80", [(int) $user['id']]);
         foreach ($rows as $r) {
             $m = ai_match_score($terms, [(string) $r['title'], (string) $r['needed_skills'], (string) $r['description']], [6, 5, 2]);
+            if ($m['score'] <= 0 && !$personal) continue;
             $pm = ai_match_score($profileTerms, [(string) $r['needed_skills'], (string) $r['title'], (string) $r['description']], [3, 2, 1]);
             $space = (int) $r['members'] < (int) $r['max_members'];
-            $score = 1 + $m['score'] + $pm['score'] + ($r['status'] === 'open' ? 2 : 0) + ($space ? 2 : 0);
+            $score = 1 + $m['score'] + $pm['score'] + ($r['status'] === 'open' ? 2 : 0) + ($space ? 2 : 0) + ($contributorIntent ? 8 : 0);
             $all[] = ['type' => 'project', 'title' => $r['title'], 'description' => excerpt((string) $r['description'], 105),
                 'meta' => ucfirst(str_replace('_', ' ', $r['status'])) . ' · ' . (int) $r['members'] . '/' . (int) $r['max_members'] . ' members' . ($r['needed_skills'] ? ' · ' . implode(', ', csv_list((string) $r['needed_skills'])) : ''),
                 'reason' => ai_result_reason(array_unique([...$m['matches'], ...$pm['matches']]), $personal), 'url' => url('projects/' . $r['id']), 'score' => $score];
@@ -461,9 +487,10 @@ function ai_search_catalog(string $text, array $user, int $limit = 6): array
 
     if (in_array('mentors', $catalogs, true)) {
         $rows = qall("SELECT u.id,u.full_name,u.headline,u.major,m.expertise,m.about,m.availability
-            FROM mentor_profiles m JOIN users u ON u.id=m.user_id WHERE m.active=1 AND u.status='active' ORDER BY u.points DESC LIMIT 60");
+            FROM mentor_profiles m JOIN users u ON u.id=m.user_id WHERE m.active=1 AND u.status='active' AND u.id<>? ORDER BY u.points DESC LIMIT 60", [(int) $user['id']]);
         foreach ($rows as $r) {
             $m = ai_match_score($terms, [(string) $r['expertise'], (string) $r['full_name'], (string) $r['about'], (string) $r['major']], [6, 4, 2, 3]);
+            if ($m['score'] <= 0 && !$personal) continue;
             $pm = ai_match_score($profileTerms, [(string) $r['expertise'], (string) $r['about'], (string) $r['major']], [3, 1, 2]);
             $all[] = ['type' => 'mentor', 'title' => $r['full_name'], 'description' => excerpt((string) ($r['about'] ?: $r['headline'] ?: 'Available to guide MANBAR students'), 105),
                 'meta' => implode(' · ', array_filter([(string) $r['expertise'], (string) $r['availability']])),
@@ -472,9 +499,10 @@ function ai_search_catalog(string $text, array $user, int $limit = 6): array
     }
 
     if (in_array('courses', $catalogs, true)) {
-        $rows = qall("SELECT c.id,c.title,c.description,c.category,c.level,u.full_name AS author_name FROM courses c JOIN users u ON u.id=c.author_id WHERE c.status='published' ORDER BY c.id DESC LIMIT 80");
+        $rows = qall("SELECT c.id,c.title,c.description,c.category,c.level,u.full_name AS author_name FROM courses c JOIN users u ON u.id=c.author_id WHERE c.status='published' AND c.author_id<>? ORDER BY c.id DESC LIMIT 80", [(int) $user['id']]);
         foreach ($rows as $r) {
             $m = ai_match_score($terms, [(string) $r['title'], (string) $r['category'], (string) $r['description']], [6, 5, 2]);
+            if ($m['score'] <= 0 && !$personal) continue;
             $pm = ai_match_score($profileTerms, [(string) $r['category'], (string) $r['title'], (string) $r['description']], [3, 2, 1]);
             $all[] = ['type' => 'course', 'title' => $r['title'], 'description' => excerpt((string) $r['description'], 105),
                 'meta' => ucfirst($r['level']) . ' · ' . ucfirst($r['category']) . ' · ' . $r['author_name'],
@@ -483,7 +511,7 @@ function ai_search_catalog(string $text, array $user, int $limit = 6): array
     }
 
     if (in_array('services', $catalogs, true)) {
-        $rows = qall("SELECT s.id,s.title,s.description,s.category,s.price,s.delivery_days,u.full_name AS seller_name FROM services s JOIN users u ON u.id=s.user_id WHERE s.status='active' ORDER BY s.id DESC LIMIT 80");
+        $rows = qall("SELECT s.id,s.title,s.description,s.category,s.price,s.delivery_days,u.full_name AS seller_name FROM services s JOIN users u ON u.id=s.user_id WHERE s.status='active' AND s.user_id<>? ORDER BY s.id DESC LIMIT 80", [(int) $user['id']]);
         foreach ($rows as $r) {
             $m = ai_match_score($terms, [(string) $r['title'], (string) $r['category'], (string) $r['description']], [6, 5, 2]);
             if ($m['score'] <= 0 && !$personal) continue;
@@ -921,8 +949,9 @@ function ai_guide_assist(string $text, array $user, bool $allowLlm = true, strin
     $grammarRequest = (bool) preg_match('/\b(grammar|grammer|spelling|correct|rewrite|rephrase|polish|improve (?:this|my|the) writing)\b/iu', $text);
     $writingDraft = $grammarRequest ? ai_writing_draft($text) : $text;
     $assist = ai_assist($writingDraft, $user, 'guide', 'message', $allowLlm, 'natural', $pageContext);
-    $results = ai_search_catalog($text, $user);
     $corrected = $assist['fix']['corrected'];
+    $discoveryText = trim($writingDraft . ' ' . $corrected . ' ' . $pageContext);
+    $results = ai_search_catalog($discoveryText, $user, 6, $grammarRequest || ai_search_requested($writingDraft));
     $route = $assist['route'];
     $greeting = (bool) preg_match('/^\s*(hi|hello|hey|help|what can you do)[!?.\s]*$/iu', $text);
 
