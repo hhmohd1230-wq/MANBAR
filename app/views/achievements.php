@@ -18,6 +18,12 @@ $tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legenda
   </header>
 
   <section class="achievement-command rank-theme-<?= e(rank_key((int) $lvl['n'])) ?>" aria-labelledby="current-rank-title">
+    <div class="rank-vfx" aria-hidden="true">
+      <span class="rank-vfx-aura"></span>
+      <span class="rank-vfx-orbit"></span>
+      <span class="rank-vfx-sweep"></span>
+      <span class="rank-vfx-particles"><?php for ($spark = 0; $spark < 9; $spark++): ?><i></i><?php endfor ?></span>
+    </div>
     <div class="achievement-crest" aria-hidden="true">
       <span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> rank-emblem-hero"></span>
       <small>RANK <?= (int) $lvl['n'] ?></small>
