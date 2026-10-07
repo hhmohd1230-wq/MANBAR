@@ -1117,6 +1117,26 @@
   }
 
   /* ---------- course/lesson & misc ---------- */
+  const achievements = $('[data-achievements]');
+  if (achievements) {
+    const badgeCards = $$('[data-badge-state]', achievements);
+    const empty = $('.badge-filter-empty', achievements);
+    $$('[data-badge-filter]', achievements).forEach(button => button.addEventListener('click', () => {
+      const filter = button.dataset.badgeFilter;
+      $$('[data-badge-filter]', achievements).forEach(item => {
+        const active = item === button;
+        item.classList.toggle('is-active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
+      let visible = 0;
+      badgeCards.forEach(card => {
+        const show = filter === 'all' || card.dataset.badgeState === filter;
+        card.hidden = !show;
+        if (show) visible++;
+      });
+      if (empty) empty.hidden = visible !== 0;
+    }));
+  }
   $$('[data-autosubmit]').forEach(el => el.addEventListener('change', () => el.form.requestSubmit()));
   const chat = $('.chat'); if (chat && !chat.classList.contains('dm')) chat.scrollTop = 0;
 })();

@@ -33,7 +33,7 @@ $activity = [
             <div class="c-ui-body">
               <nav class="c-ui-rail">
                 <span><?= icon('home', 11) ?> Feed</span><span class="on"><?= icon('rocket', 11) ?> Projects</span><span><?= icon('store', 11) ?> Marketplace</span><span><?= icon('book', 11) ?> Learning</span><span><?= icon('compass', 11) ?> Mentors</span><span><?= icon('users', 11) ?> People</span>
-                <span class="c-ui-lvl"><small>Level 3</small><b>Contributor</b><i><s></s></i></span>
+                <span class="c-ui-lvl"><small>Rank 3</small><b>Gold</b><i><s></s></i></span>
               </nav>
               <div class="c-ui-main">
                 <div class="c-ui-proj">

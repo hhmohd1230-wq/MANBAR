@@ -6,7 +6,8 @@ function page_mentors(): void
     $where = ["u.status = 'active'", 'm.active = 1'];
     $params = [];
     if ($q !== '') { $where[] = '(u.full_name LIKE ? OR m.expertise LIKE ? OR m.about LIKE ?)'; array_push($params, "%$q%", "%$q%", "%$q%"); }
-    $mentors = qall('SELECT m.*, u.id AS uid, u.full_name, u.avatar_url, u.email, u.verified, u.headline, u.department, u.role,
+    ensure_reputation_schema();
+    $mentors = qall('SELECT m.*, u.id AS uid, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score, u.headline, u.department, u.role,
         (SELECT COUNT(*) FROM mentorship_requests r WHERE r.mentor_id = u.id AND r.status IN (\'accepted\',\'completed\')) AS mentees
         FROM mentor_profiles m JOIN users u ON u.id = m.user_id WHERE ' . implode(' AND ', $where) . ' ORDER BY mentees DESC, u.full_name', $params);
     $pending = (int) qval("SELECT COUNT(*) FROM mentorship_requests WHERE mentor_id = ? AND status = 'pending'", [$u['id']]);
@@ -16,7 +17,8 @@ function page_mentors(): void
 function page_mentor(int $id): void
 {
     $u = require_login();
-    $m = qrow('SELECT m.*, u.id AS uid, u.full_name, u.avatar_url, u.email, u.verified, u.headline, u.department, u.faculty FROM mentor_profiles m JOIN users u ON u.id = m.user_id WHERE m.user_id = ?', [$id]) ?? abort(404, 'Mentor not found.');
+    ensure_reputation_schema();
+    $m = qrow('SELECT m.*, u.id AS uid, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score, u.headline, u.department, u.faculty FROM mentor_profiles m JOIN users u ON u.id = m.user_id WHERE m.user_id = ?', [$id]) ?? abort(404, 'Mentor not found.');
     $mentees = (int) qval("SELECT COUNT(*) FROM mentorship_requests WHERE mentor_id = ? AND status IN ('accepted','completed')", [$id]);
     $open = qrow("SELECT * FROM mentorship_requests WHERE mentor_id = ? AND student_id = ? AND status IN ('pending','accepted') ORDER BY id DESC", [$id, $u['id']]);
     render('mentor', compact('u', 'm', 'mentees', 'open'));

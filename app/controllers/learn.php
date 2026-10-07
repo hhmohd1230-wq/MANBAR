@@ -8,7 +8,8 @@ function page_learn(): void
     $params = [];
     if (isset(COURSE_CATEGORIES[$cat])) { $where[] = 'c.category = ?'; $params[] = $cat; }
     if ($q !== '') { $where[] = '(c.title LIKE ? OR c.description LIKE ?)'; array_push($params, "%$q%", "%$q%"); }
-    $courses = qall('SELECT c.*, u.full_name, u.avatar_url, u.email, u.verified,
+    ensure_reputation_schema();
+    $courses = qall('SELECT c.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score,
         (SELECT COUNT(*) FROM lessons l WHERE l.course_id = c.id) AS lessons,
         (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS students
         FROM courses c JOIN users u ON u.id = c.author_id WHERE ' . implode(' AND ', $where) . ' ORDER BY c.id DESC LIMIT 60', $params);
@@ -22,7 +23,8 @@ function page_learn(): void
 function page_course(int $id, ?int $lessonId = null): void
 {
     $u = require_login();
-    $c = qrow('SELECT c.*, u.full_name, u.avatar_url, u.email, u.verified, u.headline FROM courses c JOIN users u ON u.id = c.author_id WHERE c.id = ?', [$id]) ?? abort(404, 'Course not found.');
+    ensure_reputation_schema();
+    $c = qrow('SELECT c.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score, u.headline FROM courses c JOIN users u ON u.id = c.author_id WHERE c.id = ?', [$id]) ?? abort(404, 'Course not found.');
     if ($c['status'] !== 'published' && !is_admin() && (int) $c['author_id'] !== (int) $u['id']) abort(404);
     $lessons = qall('SELECT * FROM lessons WHERE course_id = ? ORDER BY position, id', [$id]);
     $enrolled = qrow('SELECT * FROM enrollments WHERE course_id = ? AND user_id = ?', [$id, $u['id']]);

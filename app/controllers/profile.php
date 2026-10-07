@@ -49,6 +49,7 @@ function safe_phone(string $value): ?string
 function profile_data(int $id): ?array
 {
     ensure_profile_customization_schema();
+    ensure_reputation_schema();
     $p = qrow('SELECT u.*, un.short_name AS uni_short, un.name AS uni_name FROM users u JOIN universities un ON un.id = u.university_id WHERE u.id = ?', [$id]);
     if (!$p) return null;
     $p['skills'] = array_column(qall("SELECT name FROM user_skills WHERE user_id = ? AND kind = 'skill' ORDER BY name", [$id]), 'name');
@@ -62,6 +63,7 @@ function profile_data(int $id): ?array
 function page_profile(int $id): void
 {
     $u = require_login();
+    $rankScore = refresh_reputation_score($id);
     $p = profile_data($id) ?? abort(404, 'This profile does not exist.');
     $tab = input('tab', 'posts');
     $posts = fetch_posts('p.user_id = ?', [$id], 20);
@@ -69,16 +71,22 @@ function page_profile(int $id): void
         WHERE pr.hidden = 0 AND (pr.owner_id = ? OR pr.id IN (SELECT project_id FROM project_members WHERE user_id = ?)) ORDER BY pr.id DESC", [$id, $id]);
     $services = qall("SELECT * FROM services WHERE user_id = ? AND status = 'active' ORDER BY id DESC", [$id]);
     $badges = qall('SELECT b.*, ub.created_at AS earned FROM user_badges ub JOIN badges b ON b.id = ub.badge_id WHERE ub.user_id = ? ORDER BY ub.created_at DESC', [$id]);
+    foreach ($badges as &$badge) $badge['tier'] = badge_tier((string) $badge['code']);
+    unset($badge);
     $courses = qall("SELECT c.*, (SELECT COUNT(*) FROM enrollments e WHERE e.course_id = c.id) AS students FROM courses c WHERE c.author_id = ? AND c.status = 'published'", [$id]);
     $mentor = qrow('SELECT * FROM mentor_profiles WHERE user_id = ? AND active = 1', [$id]);
-    $followers = qall("SELECT u.id, u.full_name, u.email, u.avatar_url, u.headline, u.major, u.role, u.verified
+    $followers = qall("SELECT u.id, u.full_name, u.email, u.avatar_url, u.headline, u.major, u.role, u.verified, u.reputation_score
         FROM follows f JOIN users u ON u.id = f.follower_id
         WHERE f.followed_id = ? AND u.status = 'active' ORDER BY f.created_at DESC LIMIT 100", [$id]);
-    $following = qall("SELECT u.id, u.full_name, u.email, u.avatar_url, u.headline, u.major, u.role, u.verified
+    $following = qall("SELECT u.id, u.full_name, u.email, u.avatar_url, u.headline, u.major, u.role, u.verified, u.reputation_score
         FROM follows f JOIN users u ON u.id = f.followed_id
         WHERE f.follower_id = ? AND u.status = 'active' ORDER BY f.created_at DESC LIMIT 100", [$id]);
-    $lvl = level_for((int) $p['points']);
-    render('profile', compact('u', 'p', 'tab', 'posts', 'projects', 'services', 'badges', 'courses', 'mentor', 'followers', 'following', 'lvl'));
+    $recommendations = qall('SELECT r.*, u.full_name, u.avatar_url, u.email, u.headline, u.major, u.role, u.verified, u.reputation_score FROM recommendations r JOIN users u ON u.id = r.author_id WHERE r.subject_id = ? ORDER BY r.id DESC', [$id]);
+    $reputation = reputation_breakdown($id);
+    $canRecommend = (int) $u['id'] !== $id ? recommendation_eligibility((int) $u['id'], $id) : null;
+    $myRecommendation = (int) $u['id'] !== $id ? qrow('SELECT * FROM recommendations WHERE author_id = ? AND subject_id = ?', [$u['id'], $id]) : null;
+    $lvl = level_for($rankScore);
+    render('profile', compact('u', 'p', 'tab', 'posts', 'projects', 'services', 'badges', 'courses', 'mentor', 'followers', 'following', 'recommendations', 'reputation', 'canRecommend', 'myRecommendation', 'rankScore', 'lvl'));
 }
 
 function page_me(): void { redirect('profile/' . require_login()['id']); }
@@ -149,6 +157,26 @@ function safe_url(string $s): ?string
     return filter_var($s, FILTER_VALIDATE_URL) ? mb_substr($s, 0, 250) : null;
 }
 
+function profile_recommend(int $id): void
+{
+    $u = require_login();
+    ensure_reputation_schema();
+    $subject = qrow("SELECT id, full_name FROM users WHERE id = ? AND status = 'active'", [$id]) ?? abort(404);
+    $eligibility = recommendation_eligibility((int) $u['id'], $id);
+    if (!$eligibility) { flash('Recommendations unlock after completed marketplace work, a completed project, or a mentoring session.', 'error'); redirect("profile/$id?tab=recommendations"); }
+    $body = mb_substr(trim((string) ($_POST['body'] ?? '')), 0, 800);
+    $rating = max(1, min(5, input_int('rating', 5)));
+    if (mb_strlen($body) < 20) { flash('Write at least 20 characters about your experience.', 'error'); redirect("profile/$id?tab=recommendations"); }
+    $existing = qrow('SELECT id FROM recommendations WHERE author_id = ? AND subject_id = ?', [$u['id'], $id]);
+    $data = ['context_type' => $eligibility['type'], 'context_id' => $eligibility['id'], 'rating' => $rating, 'body' => $body, 'updated_at' => now()];
+    if ($existing) update('recommendations', $data, 'id = ?', [$existing['id']]);
+    else insert('recommendations', ['author_id' => $u['id'], 'subject_id' => $id] + $data);
+    refresh_reputation_score($id);
+    notify($id, 'review', $u['full_name'] . ' recommended you after ' . strtolower($eligibility['label']) . '.', "profile/$id?tab=recommendations");
+    flash('Your verified recommendation is now part of ' . $subject['full_name'] . '’s profile.');
+    redirect("profile/$id?tab=recommendations");
+}
+
 /* ---------- people directory ---------- */
 function page_people(): void
 {
@@ -163,7 +191,8 @@ function page_people(): void
     if (in_array($role, ['student', 'teacher'], true)) { $where[] = 'u.role = ?'; $params[] = $role; }
     if ($major !== '') { $where[] = 'u.major LIKE ?'; $params[] = "%$major%"; }
     if ($skill !== '') { $where[] = 'u.id IN (SELECT user_id FROM user_skills WHERE name LIKE ?)'; $params[] = "%$skill%"; }
-    $people = qall('SELECT u.id, u.full_name, u.avatar_url, u.email, u.headline, u.major, u.role, u.verified, u.points, u.theme FROM users u WHERE ' . implode(' AND ', $where) . ' ORDER BY u.points DESC, u.id LIMIT 60', $params);
+    ensure_reputation_schema();
+    $people = qall('SELECT u.id, u.full_name, u.avatar_url, u.email, u.headline, u.major, u.role, u.verified, u.points, u.reputation_score, u.theme FROM users u WHERE ' . implode(' AND ', $where) . ' ORDER BY u.reputation_score DESC, u.points DESC, u.id LIMIT 60', $params);
     foreach ($people as &$p) $p['skills'] = array_column(qall("SELECT name FROM user_skills WHERE user_id = ? AND kind = 'skill' LIMIT 4", [$p['id']]), 'name');
     $topSkills = array_column(qall('SELECT name, COUNT(*) AS n FROM user_skills GROUP BY name ORDER BY n DESC, name LIMIT 14'), 'name');
     $majors = array_column(qall("SELECT DISTINCT major FROM users WHERE major IS NOT NULL AND major <> '' ORDER BY major"), 'major');

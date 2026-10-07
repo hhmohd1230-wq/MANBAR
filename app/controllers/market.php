@@ -10,7 +10,8 @@ function page_marketplace(): void
     if (isset(SERVICE_CATEGORIES[$cat])) { $where[] = 's.category = ?'; $params[] = $cat; }
     if ($q !== '') { $where[] = '(s.title LIKE ? OR s.description LIKE ?)'; array_push($params, "%$q%", "%$q%"); }
     $order = ['new' => 's.id DESC', 'cheap' => 's.price ASC, s.id DESC', 'top' => 'rating DESC, reviews DESC, s.id DESC'][$sort] ?? 's.id DESC';
-    $services = qall('SELECT s.*, u.full_name, u.avatar_url, u.email, u.verified, u.role,
+    ensure_reputation_schema();
+    $services = qall('SELECT s.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score, u.role,
         (SELECT COALESCE(AVG(r.rating), 0) FROM service_reviews r WHERE r.service_id = s.id) AS rating,
         (SELECT COUNT(*) FROM service_reviews r WHERE r.service_id = s.id) AS reviews
         FROM services s JOIN users u ON u.id = s.user_id WHERE ' . implode(' AND ', $where) . " ORDER BY $order LIMIT 60", $params);
@@ -36,7 +37,8 @@ function service_create(): void
 function page_service(int $id): void
 {
     $u = require_login();
-    $s = qrow('SELECT s.*, u.full_name, u.avatar_url, u.email, u.verified, u.role, u.headline, u.major FROM services s JOIN users u ON u.id = s.user_id WHERE s.id = ?', [$id]) ?? abort(404, 'Service not found.');
+    ensure_reputation_schema();
+    $s = qrow('SELECT s.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score, u.role, u.headline, u.major FROM services s JOIN users u ON u.id = s.user_id WHERE s.id = ?', [$id]) ?? abort(404, 'Service not found.');
     if ($s['status'] === 'hidden' && !is_admin() && (int) $s['user_id'] !== (int) $u['id']) abort(404);
     $reviews = qall('SELECT r.*, u.full_name, u.avatar_url, u.email FROM service_reviews r JOIN users u ON u.id = r.reviewer_id WHERE r.service_id = ? ORDER BY r.id DESC', [$id]);
     $avg = $reviews ? array_sum(array_column($reviews, 'rating')) / count($reviews) : 0;

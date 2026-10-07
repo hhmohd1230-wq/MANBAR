@@ -49,6 +49,7 @@ return [
     ['GET',  '/me',                       'page_me'],
     ['GET',  '/profile/edit',             'page_profile_edit'],
     ['POST', '/profile/edit',             'profile_save'],
+    ['POST', '/profile/{id}/recommend',   'profile_recommend'],
     ['GET',  '/profile/{id}',             'page_profile'],
     ['GET',  '/people',                   'page_people'],
 

@@ -16,7 +16,7 @@ Capstone project, College of Engineering, Al Ain University (Yaman AlNasri, Tami
 | **Marketplace** | List services (AED or free) · requests · accept / deliver · ratings & reviews · teachers can market tutoring |
 | **Learning center** | Teachers publish courses & lessons (YouTube supported); students enroll and track progress |
 | **Mentorship** | Mentor directory · requests · scheduling · feedback |
-| **Achievements** | Points, 13 badges, 6 levels, leaderboard |
+| **Achievements** | Reputation XP, 24 badges, 8 ranks, verified recommendations, leaderboard |
 | **Messages & notifications** | Direct messages, live badges |
 | **MANBAR Assistant** | Drafts and improves writing across feed posts, projects, marketplace, learning, mentorship, profiles, chat and comments; previews every important before → after change; then recommends direct links to matching community posts, open projects, people, mentors, courses and services based on the student’s intent and skills (works locally; optional Gemini, Groq, OpenAI or Claude language review) |
 | **Admin dashboard** | Analytics charts, users (roles, suspend, verify, CSV export), **roster CSV import**, moderation & reports, content control, **universities** (switch ADU / UAEU on later), settings, audit log |

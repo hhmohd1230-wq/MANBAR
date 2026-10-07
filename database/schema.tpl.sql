@@ -51,6 +51,7 @@ CREATE TABLE users (
   name_style VARCHAR(20) NOT NULL DEFAULT 'classic',
   profile_effect VARCHAR(20) NOT NULL DEFAULT 'none',
   points INT NOT NULL DEFAULT 0,
+  reputation_score INT NOT NULL DEFAULT 0,
   profile_complete INT NOT NULL DEFAULT 0,
   product_tour_completed INT NOT NULL DEFAULT 0,
   last_login DATETIME NULL,
@@ -77,6 +78,22 @@ CREATE TABLE follows (
   FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (followed_id) REFERENCES users(id) ON DELETE CASCADE
 ) {{ENGINE}};
+
+CREATE TABLE recommendations (
+  id {{PK}},
+  author_id INT NOT NULL,
+  subject_id INT NOT NULL,
+  context_type VARCHAR(24) NOT NULL,                 -- service | project | mentorship
+  context_id INT NULL,
+  rating INT NOT NULL DEFAULT 5,
+  body VARCHAR(800) NOT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  UNIQUE (author_id, subject_id),
+  FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (subject_id) REFERENCES users(id) ON DELETE CASCADE
+) {{ENGINE}};
+CREATE INDEX idx_recommendations_subject ON recommendations(subject_id);
 
 CREATE TABLE posts (
   id {{PK}},
