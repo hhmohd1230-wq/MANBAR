@@ -1,20 +1,166 @@
-<?php $title = 'Achievements'; $earned = count(array_filter($badges, fn($b) => $b['earned'])); ?>
-<div class="pagehead"><div><h1>Achievements</h1><p>Points, badges and levels — recognition for being a great campus citizen.</p></div></div>
-<div class="banner mb">
-  <div class="row wrap between"><div><div class="xs" style="opacity:.85;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Your level</div><h2 style="font-size:34px">Level <?= $lvl['n'] ?> · <?= e($lvl['name']) ?></h2>
-    <div style="max-width:420px"><div class="progress" style="background:rgba(255,255,255,.3);margin:10px 0 6px"><i style="background:#fff;width:<?= $lvl['pct'] ?>%"></i></div><span class="small"><?= (int) $u['points'] ?> points<?= $lvl['next'] ? ' · ' . ($lvl['next_at'] - $u['points']) . ' to reach ' . e($lvl['next']) : ' · max level reached 🎉' ?></span></div></div>
-    <div class="row" style="gap:28px"><div class="tc"><div style="font:800 40px var(--font-d)">#<?= $rank ?></div><div class="small" style="opacity:.9">Campus rank</div></div><div class="tc"><div style="font:800 40px var(--font-d)"><?= $earned ?>/<?= count($badges) ?></div><div class="small" style="opacity:.9">Badges</div></div></div></div>
-</div>
-<div class="page-grid">
-  <div class="stack gap-l">
-    <section><h3>Badges</h3><div class="badge-grid"><?php foreach ($badges as $b): ?><div class="badge-card tone-<?= e($b['tone']) ?> <?= $b['earned'] ? '' : 'locked' ?>"><div class="badge-ico"><?= icon($b['icon'], 28) ?></div><b><?= e($b['name']) ?></b><small><?= e($b['description']) ?></small><?php if ($b['earned']): ?><span class="chip on sm" style="margin-top:8px"><?= icon('check', 12) ?> Earned</span><?php else: ?><span class="chip outline sm" style="margin-top:8px"><?= icon('lock', 12) ?> Locked</span><?php endif ?></div><?php endforeach ?></div></section>
-    <section class="card"><h3>How to earn points</h3>
-      <div class="table-wrap" style="border:0"><table class="t"><tbody>
-        <?php foreach ([['Complete your profile', '+20'], ['Publish a post', '+10'], ['Start a project', '+15'], ['Join a project team', '+10'], ['Complete a project', '+30'], ['Write a comment', '+3'], ['Receive a reaction', '+1'], ['List a service', '+10'], ['Finish a course', '+25'], ['Complete a mentoring session', '+5 / +20']] as [$a, $p]): ?><tr><td><?= e($a) ?></td><td style="text-align:right"><b style="color:var(--g700)"><?= $p ?></b></td></tr><?php endforeach ?></tbody></table></div></section>
+<?php
+$title = 'Achievements';
+$earned = count(array_filter($badges, fn($badge) => (int) $badge['earned']));
+$totalBadges = count($badges);
+$toNext = $lvl['next'] ? max(0, (int) $lvl['next_at'] - (int) $u['points']) : 0;
+$rankPercent = max(1, (int) ceil($rank / max(1, $memberCount) * 100));
+$rankTrack = count($levels) > 1 ? (($lvl['n'] - 1) / (count($levels) - 1)) * 100 : 100;
+$tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legendary' => 'Legendary'];
+?>
+
+<div class="achievements-page" data-achievements>
+  <header class="achievement-pagehead">
+    <div>
+      <h1>Build your MANBAR legacy</h1>
+      <p>Every useful contribution moves your rank forward. Complete quests, collect badges and climb the campus leaderboard.</p>
+    </div>
+    <a class="achievement-profile-link" href="<?= e(url('profile/' . $u['id'] . '?tab=badges')) ?>"><?= icon('user', 17) ?> View badge showcase</a>
+  </header>
+
+  <section class="achievement-command rank-theme-<?= e(rank_key((int) $lvl['n'])) ?>" aria-labelledby="current-rank-title">
+    <div class="achievement-crest" aria-hidden="true">
+      <span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> rank-emblem-hero"></span>
+      <small>RANK <?= (int) $lvl['n'] ?></small>
+    </div>
+    <div class="achievement-level-copy">
+      <p class="achievement-level-label">Current rank</p>
+      <h2 id="current-rank-title"><?= e($lvl['name']) ?></h2>
+      <p><?= $lvl['next'] ? 'Your next rank is ' . e($lvl['next']) . '. Keep helping the campus community to unlock it.' : 'You reached MANBAR’s highest rank. Your contribution now sets the standard for the campus.' ?></p>
+      <div class="achievement-xp-head"><span><b><?= number_format((int) $rankScore) ?></b> rank XP</span><span><?= $lvl['next'] ? number_format($toNext) . ' XP to ' . e($lvl['next']) : 'Maximum rank reached' ?></span></div>
+      <div class="achievement-xp" role="progressbar" aria-label="Progress to <?= e($lvl['next'] ?: $lvl['name']) ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= (int) $lvl['pct'] ?>"><i style="--xp:<?= (int) $lvl['pct'] ?>%"></i></div>
+    </div>
+    <dl class="achievement-readout">
+      <div><dt>Campus rank</dt><dd>#<?= (int) $rank ?></dd><small>Top <?= (int) $rankPercent ?>% of <?= (int) $memberCount ?></small></div>
+      <div><dt>Badge vault</dt><dd><?= (int) $earned ?><span>/<?= (int) $totalBadges ?></span></dd><small><?= (int) round($earned / max(1, $totalBadges) * 100) ?>% collected</small></div>
+      <div><dt>Trust score</dt><dd><?= $reputation['trust_percent'] === null ? '—' : (int) $reputation['trust_percent'] . '%' ?></dd><small><?= (int) $reputation['review_count'] + (int) $reputation['recommendation_count'] ?> verified ratings</small></div>
+    </dl>
+  </section>
+
+  <section class="reputation-ledger" aria-labelledby="reputation-ledger-title">
+    <div><h2 id="reputation-ledger-title">What builds your rank</h2><p>Rank XP combines contribution with trust. Reviews and recommendations only count after completed work.</p></div>
+    <dl>
+      <div><dt><?= icon('sparkles', 15) ?> Activity</dt><dd><?= number_format((int) $reputation['activity']) ?></dd></div>
+      <div><dt><?= icon('heart', 15) ?> Community appreciation</dt><dd><?= number_format((int) $reputation['appreciation']) ?></dd></div>
+      <div><dt><?= icon('star', 15) ?> Client reviews</dt><dd><?= number_format((int) $reputation['reviews']) ?></dd></div>
+      <div><dt><?= icon('award', 15) ?> Recommendations</dt><dd><?= number_format((int) $reputation['recommendations']) ?></dd></div>
+      <div><dt><?= icon('check-circle', 15) ?> Completed work</dt><dd><?= number_format((int) $reputation['completed_work']) ?></dd></div>
+    </dl>
+  </section>
+
+  <section class="rank-road" aria-labelledby="rank-road-title" style="--rank-progress:<?= number_format($rankTrack, 2, '.', '') ?>%">
+    <div class="achievement-section-head">
+      <div><h2 id="rank-road-title">Your rank journey</h2><p>Eight ranks lead from your first contribution to becoming a MANBAR Icon.</p></div>
+      <?php if ($rankGap > 0): ?><span><?= icon('trending', 15) ?> <?= (int) $rankGap ?> XP from the next campus position</span><?php endif ?>
+    </div>
+    <div class="rank-road-scroll">
+      <ol class="rank-road-track">
+        <?php foreach ($levels as $i => [$minimum, $name]):
+          $number = $i + 1;
+          $state = $number < $lvl['n'] ? 'is-reached' : ($number === $lvl['n'] ? 'is-current' : 'is-locked');
+        ?>
+          <li class="<?= $state ?>" aria-current="<?= $number === $lvl['n'] ? 'step' : 'false' ?>">
+            <span class="rank-road-node"><span class="rank-emblem rank-<?= e(rank_key($number)) ?>"></span></span>
+            <b><?= e($name) ?></b>
+            <small><?= number_format((int) $minimum) ?> XP</small>
+          </li>
+        <?php endforeach ?>
+      </ol>
+    </div>
+  </section>
+
+  <div class="achievement-layout">
+    <main class="achievement-main">
+      <section class="quest-board" aria-labelledby="quest-title">
+        <div class="achievement-section-head">
+          <div><h2 id="quest-title">Next quests</h2><p>Your closest badge unlocks, calculated from your real activity.</p></div>
+          <span><?= icon('target', 15) ?> <?= count($quests) ?> active</span>
+        </div>
+        <?php if ($quests): ?>
+          <div class="quest-list">
+            <?php foreach ($quests as $index => $badge): $progress = $badge['progress']; ?>
+              <article class="quest-item tier-<?= e($badge['tier']) ?> <?= $index === 0 ? 'is-priority' : '' ?>">
+                <div class="quest-token tone-<?= e($badge['tone']) ?>"><?= icon($badge['icon'], $index === 0 ? 27 : 22) ?></div>
+                <div class="quest-copy">
+                  <div class="quest-title"><h3><?= e($badge['name']) ?></h3><span><?= e($tierNames[$badge['tier']] ?? 'Core') ?></span></div>
+                  <p><?= e($progress['label']) ?></p>
+                  <div class="quest-progress-head"><span><?= (int) $progress['current'] ?> / <?= (int) $progress['target'] ?></span><b><?= (int) $progress['pct'] ?>%</b></div>
+                  <div class="quest-progress"><i style="--quest:<?= (int) $progress['pct'] ?>%"></i></div>
+                </div>
+                <div class="quest-art tone-<?= e($badge['tone']) ?>" aria-hidden="true"><?= icon($badge['icon'], $index === 0 ? 80 : 54) ?></div>
+                <a class="quest-action" href="<?= e($progress['url']) ?>" aria-label="Continue quest: <?= e($badge['name']) ?>">Continue <?= icon('arrow-right', 14) ?></a>
+              </article>
+            <?php endforeach ?>
+          </div>
+        <?php else: ?>
+          <div class="quest-complete"><?= icon('award', 30) ?><div><h3>Every badge unlocked</h3><p>You completed the current collection. Keep contributing while the next challenge set is prepared.</p></div></div>
+        <?php endif ?>
+      </section>
+
+      <section class="badge-vault" aria-labelledby="badge-vault-title">
+        <div class="achievement-section-head badge-vault-head">
+          <div><h2 id="badge-vault-title">Badge vault</h2><p>Earned badges stay on your profile as proof of your campus contribution.</p></div>
+          <div class="badge-filters" role="group" aria-label="Filter badges">
+            <button type="button" class="is-active" data-badge-filter="all" aria-pressed="true">All <span><?= (int) $totalBadges ?></span></button>
+            <button type="button" data-badge-filter="earned" aria-pressed="false">Earned <span><?= (int) $earned ?></span></button>
+            <button type="button" data-badge-filter="locked" aria-pressed="false">Locked <span><?= (int) ($totalBadges - $earned) ?></span></button>
+          </div>
+        </div>
+        <div class="achievement-badge-grid" aria-live="polite">
+          <?php foreach ($badges as $badge): $progress = $badge['progress']; $isEarned = (int) $badge['earned']; ?>
+            <article class="achievement-badge tier-<?= e($badge['tier']) ?> <?= $isEarned ? 'is-earned' : 'is-locked' ?>" data-badge-state="<?= $isEarned ? 'earned' : 'locked' ?>">
+              <div class="achievement-badge-top">
+                <span class="badge-tier"><?= e($tierNames[$badge['tier']] ?? 'Core') ?></span>
+                <span class="badge-state"><?= $isEarned ? icon('check-circle', 16) . ' Earned' : icon('lock', 14) . ' Locked' ?></span>
+              </div>
+              <div class="achievement-badge-medal tone-<?= e($badge['tone']) ?>"><?= icon($badge['icon'], 28) ?></div>
+              <h3><?= e($badge['name']) ?></h3>
+              <p><?= e($badge['description']) ?></p>
+              <?php if ($isEarned): ?>
+                <small class="badge-earned-date"><?= $badge['earned_at'] ? 'Unlocked ' . e(time_ago($badge['earned_at'])) : 'Part of your collection' ?></small>
+              <?php else: ?>
+                <div class="badge-mini-progress"><i style="--badge:<?= (int) $progress['pct'] ?>%"></i></div>
+                <small><?= (int) $progress['current'] ?> / <?= (int) $progress['target'] ?> · <?= e($progress['label']) ?></small>
+              <?php endif ?>
+            </article>
+          <?php endforeach ?>
+        </div>
+        <p class="badge-filter-empty" hidden>No badges match this filter yet.</p>
+      </section>
+    </main>
+
+    <aside class="achievement-sidebar">
+      <section class="achievement-panel leaderboard-panel">
+        <div class="achievement-panel-head"><div><h2>Campus leaderboard</h2><p>Top contributors by total XP</p></div><?= icon('trophy', 21) ?></div>
+        <div class="achievement-leaderboard">
+          <?php foreach ($board as $i => $person): $isMe = (int) $person['id'] === (int) $u['id']; ?>
+            <div class="leader-row <?= $isMe ? 'is-you' : '' ?>">
+              <span class="leader-position rank r<?= $i + 1 ?>"><?= $i + 1 ?></span>
+              <a href="<?= e(url('profile/' . $person['id'])) ?>"><?= avatar($person, 38) ?></a>
+              <a class="leader-name" href="<?= e(url('profile/' . $person['id'])) ?>"><b><?= e($person['full_name']) ?><?= $isMe ? ' (You)' : '' ?></b><small><?= e($person['major'] ?: role_label($person['role'])) ?></small></a>
+              <strong><?= number_format((int) $person['reputation_score']) ?> <small>XP</small></strong>
+            </div>
+          <?php endforeach ?>
+        </div>
+      </section>
+
+      <section class="achievement-panel">
+        <div class="achievement-panel-head"><div><h2>Recent XP</h2><p>Your latest progress</p></div><?= icon('trending', 21) ?></div>
+        <div class="xp-history">
+          <?php foreach ($log as $entry): ?>
+            <div><span><?= icon('sparkles', 14) ?></span><p><b><?= e($entry['reason']) ?></b><small><?= e(time_ago($entry['created_at'])) ?></small></p><strong>+<?= (int) $entry['points'] ?></strong></div>
+          <?php endforeach ?>
+          <?php if (!$log): ?><div class="achievement-empty"><?= icon('target', 22) ?><p><b>Your journey starts here</b><small>Complete a quest to earn your first XP.</small></p></div><?php endif ?>
+        </div>
+      </section>
+
+      <details class="achievement-panel points-guide">
+        <summary><span><?= icon('info', 18) ?> How to earn XP</span><?= icon('chevron-down', 17) ?></summary>
+        <div class="points-guide-list">
+          <?php foreach ([['Complete your profile', '+20'], ['Publish a post', '+10'], ['Start a project', '+15'], ['Join a project team', '+10'], ['Complete a project', '+30'], ['Write a comment', '+3'], ['Receive a reaction', '+1'], ['List a service', '+10'], ['Finish a course', '+25'], ['Mentoring session', '+5 / +20']] as [$action, $points]): ?>
+            <div><span><?= e($action) ?></span><b><?= e($points) ?></b></div>
+          <?php endforeach ?>
+        </div>
+      </details>
+    </aside>
   </div>
-  <aside class="aside">
-    <div class="card"><div class="card-title"><h3><?= icon('trophy', 18) ?> Leaderboard</h3></div>
-      <div class="w-list"><?php foreach ($board as $i => $b): ?><div class="person" style="<?= (int) $b['id'] === (int) $u['id'] ? 'background:var(--g50);border-radius:12px;padding:6px' : '' ?>"><span class="rank r<?= $i + 1 ?>"><?= $i + 1 ?></span><a href="<?= e(url('profile/' . $b['id'])) ?>"><?= avatar($b, 36) ?></a><a class="nm grow" href="<?= e(url('profile/' . $b['id'])) ?>"><?= e($b['full_name']) ?></a><b class="small" style="color:var(--g700)"><?= (int) $b['points'] ?></b></div><?php endforeach ?></div></div>
-    <div class="card"><div class="card-title"><h3>Recent points</h3></div><div class="w-list"><?php foreach ($log as $l): ?><div class="row between small"><span><?= e($l['reason']) ?></span><b style="color:var(--g700)">+<?= (int) $l['points'] ?></b></div><?php endforeach ?><?php if (!$log): ?><span class="muted small">Nothing yet.</span><?php endif ?></div></div>
-  </aside>
 </div>

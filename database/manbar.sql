@@ -53,6 +53,7 @@ CREATE TABLE users (
   name_style VARCHAR(20) NOT NULL DEFAULT 'classic',
   profile_effect VARCHAR(20) NOT NULL DEFAULT 'none',
   points INT NOT NULL DEFAULT 0,
+  reputation_score INT NOT NULL DEFAULT 0,
   profile_complete INT NOT NULL DEFAULT 0,
   product_tour_completed INT NOT NULL DEFAULT 0,
   last_login DATETIME NULL,
@@ -81,6 +82,23 @@ CREATE TABLE follows (
   FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (followed_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE recommendations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  author_id INT NOT NULL,
+  subject_id INT NOT NULL,
+  context_type VARCHAR(24) NOT NULL,
+  context_id INT NULL,
+  rating INT NOT NULL DEFAULT 5,
+  body VARCHAR(800) NOT NULL,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  UNIQUE (author_id, subject_id),
+  FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (subject_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_recommendations_subject ON recommendations(subject_id);
 
 CREATE TABLE posts (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -412,6 +430,17 @@ INSERT INTO badges (code, name, description, icon, tone) VALUES ('graduate','Gra
 INSERT INTO badges (code, name, description, icon, tone) VALUES ('mentee','Mentee','Got accepted by a mentor','heart','rose');
 INSERT INTO badges (code, name, description, icon, tone) VALUES ('popular','Rising Star','Gained 5 followers','fire','orange');
 INSERT INTO badges (code, name, description, icon, tone) VALUES ('centurion','Centurion','Reached 100 points','trophy','amber');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('project_finisher','Mission Complete','Completed a project with your team','check-circle','green');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('community_helper','Community Hero','Wrote 25 helpful comments','heart','rose');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('knowledge_seeker','Knowledge Seeker','Completed 3 courses','book','blue');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('mentor_milestone','Guided Growth','Completed a mentoring session','compass','teal');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('campus_connector','Campus Connector','Gained 10 followers','users','violet');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('innovator_rank','Gold League','Reached the Gold rank','rocket','amber');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('pioneer_rank','Platinum League','Reached the Platinum rank','target','teal');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('champion_rank','Diamond League','Reached the Diamond rank','award','blue');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('legend_rank','Living Legend','Reached the Legend rank','fire','rose');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('master_rank','MANBAR Master','Reached the Master rank','trophy','violet');
+INSERT INTO badges (code, name, description, icon, tone) VALUES ('celestial_rank','Celestial','Reached MANBAR’s highest rank','sparkles','amber');
 INSERT INTO settings (k, v) VALUES ('registration_open','1');
 INSERT INTO settings (k, v) VALUES ('site_notice','');
 

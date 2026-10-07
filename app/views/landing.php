@@ -107,7 +107,7 @@ $login = e(url('login'));
               <div class="c-proof">
                 <div class="c-proof-h"><span class="c-av lg" style="--h:152">MA</span><span><b>Mariam Al Mansoori</b><small>UI/UX enthusiast · Future product designer</small></span><span class="c-pts" data-js="pts">+120 pts</span></div>
                 <div class="c-proof-row" data-js="badges"><span class="c-badge"><?= icon('users', 16) ?> Team Player</span><span class="c-badge"><?= icon('flag', 16) ?> Project Leader</span><span class="c-badge"><?= icon('bulb', 16) ?> Idea Machine</span></div>
-                <div class="c-level"><span>Level 3 · Contributor</span><span>Innovator at 300</span><i><s data-js="lvl" style="--w:.71"></s></i></div>
+                <div class="c-level"><span>Gold rank · 250 XP</span><span>Platinum at 500 XP</span><i><s data-js="lvl" style="--w:.71"></s></i></div>
                 <div class="c-proof-item"><b>Study-Buddy Matcher</b><small>Project owner · team of 3 · Python, SQL, UI Design</small></div>
               </div>
             </div>
@@ -164,8 +164,8 @@ $login = e(url('login'));
           <div class="c-frag c-slot" aria-hidden="true"><span class="c-av" style="--h:20">RS</span><span><b>Dr. Rania Saleh</b><small>Entrepreneurship · Pitch review</small></span><span class="c-when"><b>Thu</b><small>11:30</small></span></div>
         </article>
         <article class="c-tile t-ach">
-          <h3>Achievements</h3><p>Points, 13 badges and 6 levels, from Newcomer to Legend.</p>
-          <div class="c-frag c-levels" aria-hidden="true"><?php foreach (['Newcomer', 'Explorer', 'Contributor', 'Innovator', 'Pioneer', 'Legend'] as $i => $lv): ?><span class="<?= $i < 3 ? 'on' : '' ?>"><?= $lv ?></span><?php endforeach ?></div>
+          <h3>Achievements</h3><p>Reputation XP, 24 badges and 8 ranks, from Bronze to Celestial.</p>
+          <div class="c-frag c-levels" aria-hidden="true"><?php foreach (['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Legend', 'Master', 'Celestial'] as $i => $lv): ?><span class="<?= $i < 3 ? 'on' : '' ?>"><?= $lv ?></span><?php endforeach ?></div>
         </article>
       </div>
     </div>

@@ -215,11 +215,33 @@ function api_message_typing(int $with): void
 function page_achievements(): void
 {
     $u = require_login();
-    $badges = qall('SELECT b.*, (SELECT COUNT(*) FROM user_badges ub WHERE ub.badge_id = b.id AND ub.user_id = ?) AS earned FROM badges b ORDER BY b.id', [$u['id']]);
-    $board = qall("SELECT id, full_name, avatar_url, email, points, major, verified, role FROM users WHERE status = 'active' ORDER BY points DESC, id LIMIT 15");
+    check_badges((int) $u['id']);
+    $u = current_user(true);
+    $rankScore = refresh_reputation_score((int) $u['id']);
+    $reputation = reputation_breakdown((int) $u['id']);
+    $stats = achievement_stats((int) $u['id']);
+    $stats['rank_score'] = $rankScore;
+    $badges = qall('SELECT b.*, (SELECT COUNT(*) FROM user_badges ub WHERE ub.badge_id = b.id AND ub.user_id = ?) AS earned, (SELECT MAX(ub.created_at) FROM user_badges ub WHERE ub.badge_id = b.id AND ub.user_id = ?) AS earned_at FROM badges b ORDER BY b.id', [$u['id'], $u['id']]);
+    foreach ($badges as &$badge) {
+        $badge['progress'] = badge_progress((string) $badge['code'], $stats);
+        $badge['tier'] = badge_tier((string) $badge['code']);
+    }
+    unset($badge);
+    $quests = array_values(array_filter($badges, fn($badge) => !(int) $badge['earned']));
+    usort($quests, fn($a, $b) => ($b['progress']['pct'] <=> $a['progress']['pct']) ?: (($a['progress']['target'] - $a['progress']['current']) <=> ($b['progress']['target'] - $b['progress']['current'])));
+    $quests = array_slice($quests, 0, 3);
+    $board = qall("SELECT id, full_name, avatar_url, email, points, reputation_score, major, verified, role FROM users WHERE status = 'active' ORDER BY reputation_score DESC, points DESC, id LIMIT 15");
     $log = qall('SELECT * FROM point_log WHERE user_id = ? ORDER BY id DESC LIMIT 12', [$u['id']]);
-    $rank = 1 + (int) qval("SELECT COUNT(*) FROM users WHERE status = 'active' AND points > ?", [$u['points']]);
-    render('achievements', ['u' => $u, 'badges' => $badges, 'board' => $board, 'log' => $log, 'rank' => $rank, 'lvl' => level_for((int) $u['points'])]);
+    $rank = 1 + (int) qval("SELECT COUNT(*) FROM users WHERE status = 'active' AND reputation_score > ?", [$rankScore]);
+    $memberCount = max(1, (int) qval("SELECT COUNT(*) FROM users WHERE status = 'active'"));
+    $nextScore = qval("SELECT MIN(reputation_score) FROM users WHERE status = 'active' AND reputation_score > ?", [$rankScore]);
+    $weeklyPoints = (int) qval('SELECT COALESCE(SUM(points), 0) FROM point_log WHERE user_id = ? AND created_at >= ?', [$u['id'], date('Y-m-d H:i:s', strtotime('-7 days'))]);
+    render('achievements', [
+        'u' => $u, 'badges' => $badges, 'quests' => $quests, 'board' => $board, 'log' => $log,
+        'rank' => $rank, 'memberCount' => $memberCount, 'rankGap' => $nextScore === null ? 0 : max(0, (int) $nextScore - $rankScore),
+        'weeklyPoints' => $weeklyPoints, 'rankScore' => $rankScore, 'reputation' => $reputation,
+        'lvl' => level_for($rankScore), 'levels' => LEVELS,
+    ]);
 }
 
 /* ---------- global search ---------- */

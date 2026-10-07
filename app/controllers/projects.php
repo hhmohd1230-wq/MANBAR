@@ -36,6 +36,7 @@ function page_projects(): void
 {
     $u = require_login();
     ensure_project_cover_schema();
+    ensure_reputation_schema();
     $status = input('status');
     $skill = input('skill');
     $q = input('q');
@@ -46,7 +47,7 @@ function page_projects(): void
     if ($skill !== '') { $where[] = 'p.needed_skills LIKE ?'; $params[] = "%$skill%"; }
     if ($q !== '') { $where[] = '(p.title LIKE ? OR p.description LIKE ?)'; array_push($params, "%$q%", "%$q%"); }
     if ($mine) { $where[] = '(p.owner_id = ? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?))'; array_push($params, $u['id'], $u['id']); }
-    $projects = qall('SELECT p.*, u.full_name, u.avatar_url, u.email, u.verified,
+    $projects = qall('SELECT p.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score,
         (SELECT COUNT(*) FROM project_members m WHERE m.project_id = p.id) AS members,
         (SELECT COUNT(*) FROM project_tasks t WHERE t.project_id = p.id) AS tasks,
         (SELECT COUNT(*) FROM project_tasks t WHERE t.project_id = p.id AND t.status = \'done\') AS tasks_done
@@ -95,7 +96,8 @@ function project_create(): void
 function load_project(int $id): array
 {
     ensure_project_cover_schema();
-    return qrow('SELECT p.*, u.full_name AS owner_name, u.avatar_url AS owner_avatar, u.email AS owner_email, u.verified AS owner_verified FROM projects p JOIN users u ON u.id = p.owner_id WHERE p.id = ?', [$id]) ?? abort(404, 'Project not found.');
+    ensure_reputation_schema();
+    return qrow('SELECT p.*, u.full_name AS owner_name, u.avatar_url AS owner_avatar, u.email AS owner_email, u.verified AS owner_verified, u.reputation_score AS owner_reputation_score FROM projects p JOIN users u ON u.id = p.owner_id WHERE p.id = ?', [$id]) ?? abort(404, 'Project not found.');
 }
 function project_member(int $pid, int $uid): bool { return (bool) qval('SELECT COUNT(*) FROM project_members WHERE project_id = ? AND user_id = ?', [$pid, $uid]); }
 
@@ -106,8 +108,8 @@ function page_project(int $id): void
     if ($p['hidden'] && !is_admin() && (int) $p['owner_id'] !== (int) $u['id']) abort(404);
     $isOwner = (int) $p['owner_id'] === (int) $u['id'];
     $isMember = project_member($id, (int) $u['id']);
-    $members = qall('SELECT m.*, u.full_name, u.avatar_url, u.email, u.verified, u.headline FROM project_members m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? ORDER BY m.joined_at', [$id]);
-    $apps = $isOwner ? qall("SELECT a.*, u.full_name, u.avatar_url, u.email, u.major, u.verified FROM project_applications a JOIN users u ON u.id = a.user_id WHERE a.project_id = ? AND a.status = 'pending' ORDER BY a.id", [$id]) : [];
+    $members = qall('SELECT m.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score, u.headline FROM project_members m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? ORDER BY m.joined_at', [$id]);
+    $apps = $isOwner ? qall("SELECT a.*, u.full_name, u.avatar_url, u.email, u.major, u.verified, u.reputation_score FROM project_applications a JOIN users u ON u.id = a.user_id WHERE a.project_id = ? AND a.status = 'pending' ORDER BY a.id", [$id]) : [];
     $myApp = qrow('SELECT * FROM project_applications WHERE project_id = ? AND user_id = ?', [$id, $u['id']]);
     $tasks = ($isMember || is_admin()) ? qall('SELECT t.*, u.full_name AS assignee FROM project_tasks t LEFT JOIN users u ON u.id = t.assignee_id WHERE t.project_id = ? ORDER BY t.id', [$id]) : [];
     $msgs = ($isMember || is_admin()) ? qall('SELECT m.*, u.full_name, u.avatar_url, u.email FROM project_messages m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? ORDER BY m.id DESC LIMIT 40', [$id]) : [];

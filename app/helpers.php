@@ -165,8 +165,15 @@ function avatar(array $u, int $size = 40, string $cls = ''): string
 function role_label(string $r): string { return ['student' => 'Student', 'teacher' => 'Teacher', 'admin' => 'Admin'][$r] ?? ucfirst($r); }
 function verified_badge(array $u): string
 {
-    if (empty($u['verified'])) return '';
-    return '<span class="verified" title="Verified university member">' . icon('check-circle', 15) . '</span>';
+    $marks = '';
+    if (!empty($u['verified'])) $marks .= '<span class="verified" title="Verified university member">' . icon('check-circle', 15) . '</span>';
+    $score = (int) ($u['reputation_score'] ?? 0);
+    if ($score >= 500) {
+        $level = level_for($score);
+        $key = rank_key((int) $level['n']);
+        $marks .= '<span class="rank-trust-mark ' . e($key) . '" title="Trusted ' . e($level['name']) . ' member">' . icon('award', 15) . '</span>';
+    }
+    return $marks;
 }
 
 function audit(string $action, string $detail = ''): void

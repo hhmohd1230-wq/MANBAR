@@ -1,9 +1,10 @@
 <?php
 /* ======================= queries ======================= */
-function fetch_posts(string $where = '1=1', array $params = [], int $limit = 10, int $offset = 0, string $order = 'p.pinned DESC, p.created_at DESC, p.id DESC'): array
+function fetch_posts(string $where = '1=1', array $params = [], int $limit = 10, int $offset = 0, string $order = 'p.pinned DESC, CASE WHEN u.reputation_score >= 500 THEN 0 ELSE 1 END, p.created_at DESC, p.id DESC'): array
 {
+    ensure_reputation_schema();
     $me = uid();
-    $sql = "SELECT p.*, u.full_name, u.avatar_url, u.role, u.verified, u.email, u.headline, u.points AS author_points,
+    $sql = "SELECT p.*, u.full_name, u.avatar_url, u.role, u.verified, u.email, u.headline, u.points AS author_points, u.reputation_score,
         (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.status = 'visible') AS comment_count,
         (SELECT kind FROM reactions r WHERE r.target_type = 'post' AND r.target_id = p.id AND r.user_id = ?) AS my_reaction,
         (SELECT COUNT(*) FROM bookmarks b WHERE b.post_id = p.id AND b.user_id = ?) AS saved,
@@ -35,6 +36,7 @@ function attach_reactions(array $rows, string $type): array
 
 function sidebar_widgets(): array
 {
+    ensure_reputation_schema();
     $me = uid();
     $tags = [];
     foreach (qall("SELECT tags FROM posts WHERE status = 'visible' AND tags IS NOT NULL AND tags <> '' ORDER BY id DESC LIMIT 150") as $r) {
@@ -43,11 +45,11 @@ function sidebar_widgets(): array
     arsort($tags);
     return [
         'tags' => array_slice($tags, 0, 8, true),
-        'people' => qall("SELECT id, full_name, avatar_url, email, major, headline, verified FROM users
+        'people' => qall("SELECT id, full_name, avatar_url, email, major, headline, verified, reputation_score FROM users
             WHERE id <> ? AND status = 'active' AND profile_complete = 1 AND id NOT IN (SELECT followed_id FROM follows WHERE follower_id = ?)
             ORDER BY " . sql_rand() . ' LIMIT 4', [$me, $me]),
         'events' => qall("SELECT id, title, created_at FROM posts WHERE type = 'event' AND status = 'visible' ORDER BY id DESC LIMIT 3"),
-        'top' => qall("SELECT id, full_name, avatar_url, email, points FROM users WHERE status = 'active' ORDER BY points DESC LIMIT 5"),
+        'top' => qall("SELECT id, full_name, avatar_url, email, points, reputation_score FROM users WHERE status = 'active' ORDER BY reputation_score DESC, points DESC LIMIT 5"),
     ];
 }
 
@@ -55,6 +57,7 @@ function sidebar_widgets(): array
 function page_feed(): void
 {
     $u = require_login();
+    refresh_reputation_score((int) $u['id']);
     ensure_product_tour_schema();
     $u = current_user(true);
     $type = input('type');
@@ -68,8 +71,8 @@ function page_feed(): void
     if ($q !== '') { $where[] = '(p.title LIKE ? OR p.body LIKE ? OR u.full_name LIKE ?)'; array_push($params, "%$q%", "%$q%", "%$q%"); }
     if ($sort === 'following') { $where[] = 'p.user_id IN (SELECT followed_id FROM follows WHERE follower_id = ?)'; $params[] = $u['id']; }
     $order = $sort === 'top'
-        ? '(SELECT COUNT(*) FROM reactions r WHERE r.target_type = \'post\' AND r.target_id = p.id) + (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) * 2 DESC, p.id DESC'
-        : 'p.pinned DESC, p.created_at DESC, p.id DESC';
+        ? 'p.pinned DESC, CASE WHEN u.reputation_score >= 500 THEN 0 ELSE 1 END, (SELECT COUNT(*) FROM reactions r WHERE r.target_type = \'post\' AND r.target_id = p.id) + (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) * 2 DESC, p.id DESC'
+        : 'p.pinned DESC, CASE WHEN u.reputation_score >= 500 THEN 0 ELSE 1 END, p.created_at DESC, p.id DESC';
     $size = (int) cfg('page_size');
     $page = max(1, input_int('page', 1));
     $sql = implode(' AND ', $where);
@@ -112,7 +115,7 @@ function page_post(int $id): void
 function fetch_comments(int $postId): array
 {
     $me = uid();
-    $rows = qall("SELECT c.*, u.full_name, u.avatar_url, u.role, u.verified, u.email,
+    $rows = qall("SELECT c.*, u.full_name, u.avatar_url, u.role, u.verified, u.email, u.reputation_score,
         (SELECT kind FROM reactions r WHERE r.target_type = 'comment' AND r.target_id = c.id AND r.user_id = ?) AS my_reaction
         FROM comments c JOIN users u ON u.id = c.user_id WHERE c.post_id = ? AND c.status = 'visible' ORDER BY c.id ASC", [$me, $postId]);
     $rows = attach_reactions($rows, 'comment');
@@ -230,6 +233,7 @@ function api_react(): void
             notify((int) $row['user_id'], 'reaction', $u['full_name'] . ' reacted ' . REACTIONS[$kind]['emoji'] . ' to your ' . $type, $link);
         }
     }
+    if ((int) $row['user_id'] !== (int) $u['id']) refresh_reputation_score((int) $row['user_id']);
     $counts = array_column(qall('SELECT kind, COUNT(*) AS n FROM reactions WHERE target_type = ? AND target_id = ? GROUP BY kind', [$type, $tid]), 'n', 'kind');
     json_out(['ok' => true, 'mine' => $mine, 'counts' => $counts, 'total' => array_sum($counts)]);
 }
@@ -251,7 +255,7 @@ function api_comment(): void
     award_points((int) $u['id'], 3, 'Commented');
     notify((int) $post['user_id'], 'comment', $u['full_name'] . ' commented on “' . excerpt($post['title'], 50) . '”', "post/$pid#c$cid");
     if (!empty($pc) && (int) $pc['user_id'] !== (int) $post['user_id']) notify((int) $pc['user_id'], 'reply', $u['full_name'] . ' replied to your comment', "post/$pid#c$cid");
-    $c = qrow('SELECT c.*, u.full_name, u.avatar_url, u.role, u.verified, u.email FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?', [$cid]);
+    $c = qrow('SELECT c.*, u.full_name, u.avatar_url, u.role, u.verified, u.email, u.reputation_score FROM comments c JOIN users u ON u.id = c.user_id WHERE c.id = ?', [$cid]);
     $c += ['reactions' => [], 'reaction_total' => 0, 'my_reaction' => null, 'replies' => []];
     ob_start();
     partial('comment', ['c' => $c, 'u' => $u, 'p' => $post, 'reply' => (bool) $parent]);

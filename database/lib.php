@@ -52,6 +52,17 @@ function seed_statements(): array
         ['mentee', 'Mentee', 'Got accepted by a mentor', 'heart', 'rose'],
         ['popular', 'Rising Star', 'Gained 5 followers', 'fire', 'orange'],
         ['centurion', 'Centurion', 'Reached 100 points', 'trophy', 'amber'],
+        ['project_finisher', 'Mission Complete', 'Completed a project with your team', 'check-circle', 'green'],
+        ['community_helper', 'Community Hero', 'Wrote 25 helpful comments', 'heart', 'rose'],
+        ['knowledge_seeker', 'Knowledge Seeker', 'Completed 3 courses', 'book', 'blue'],
+        ['mentor_milestone', 'Guided Growth', 'Completed a mentoring session', 'compass', 'teal'],
+        ['campus_connector', 'Campus Connector', 'Gained 10 followers', 'users', 'violet'],
+        ['innovator_rank', 'Gold League', 'Reached the Gold rank', 'rocket', 'amber'],
+        ['pioneer_rank', 'Platinum League', 'Reached the Platinum rank', 'target', 'teal'],
+        ['champion_rank', 'Diamond League', 'Reached the Diamond rank', 'award', 'blue'],
+        ['legend_rank', 'Living Legend', 'Reached the Legend rank', 'fire', 'rose'],
+        ['master_rank', 'MANBAR Master', 'Reached the Master rank', 'trophy', 'violet'],
+        ['celestial_rank', 'Celestial', 'Reached MANBAR’s highest rank', 'sparkles', 'amber'],
     ] as [$c, $n, $d, $i, $t]) {
         $out[] = "INSERT INTO badges (code, name, description, icon, tone) VALUES (" . q_($c) . ',' . q_($n) . ',' . q_($d) . ',' . q_($i) . ',' . q_($t) . ')';
     }

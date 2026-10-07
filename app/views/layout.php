@@ -1,8 +1,13 @@
 <?php
 $me = current_user();
+$rankScore = 0;
+if ($me) {
+  $rankScore = refresh_reputation_score((int) $me['id']);
+  $me = current_user(true);
+}
 $notifN = $me ? (int) qval('SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0', [$me['id']]) : 0;
 $msgN = $me ? (int) qval('SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0', [$me['id']]) : 0;
-$lvl = $me ? level_for((int) $me['points']) : null;
+$lvl = $me ? level_for($rankScore) : null;
 $pendingMentor = $me ? (int) qval("SELECT COUNT(*) FROM mentorship_requests WHERE mentor_id = ? AND status = 'pending'", [$me['id']]) : 0;
 $title = $title ?? 'MANBAR';
 ?><!doctype html>
@@ -32,10 +37,11 @@ $title = $title ?? 'MANBAR';
       <?php if ($me['role'] === 'admin'): ?><div class="nav-label">Administration</div><a href="<?= e(url('admin')) ?>"><?= icon('shield') ?> Admin dashboard</a><?php endif ?>
     </nav>
     <div class="side-card">
-      <div class="xs" style="opacity:.85;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Level <?= $lvl['n'] ?></div>
+      <span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> side-rank-emblem" aria-hidden="true"></span>
+      <div class="xs" style="opacity:.85;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Rank <?= $lvl['n'] ?></div>
       <div class="lvl"><?= e($lvl['name']) ?></div>
       <div class="progress"><i style="width:<?= $lvl['pct'] ?>%"></i></div>
-      <div class="xs" style="opacity:.9"><?= (int) $me['points'] ?> pts<?= $lvl['next'] ? ' · ' . ($lvl['next_at'] - $me['points']) . ' to ' . e($lvl['next']) : ' · Max level' ?></div>
+      <div class="xs" style="opacity:.9"><?= number_format($rankScore) ?> XP<?= $lvl['next'] ? ' · ' . ($lvl['next_at'] - $rankScore) . ' to ' . e($lvl['next']) : ' · Max rank' ?></div>
     </div>
   </aside>
   <button class="icon-btn sidebar-restore" id="sidebarRestore" type="button" aria-label="Show sidebar" title="Show sidebar"><?= icon('panel-left-open', 20) ?></button>
