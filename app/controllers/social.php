@@ -232,6 +232,11 @@ function page_achievements(): void
     $quests = array_slice($quests, 0, 3);
     $board = qall("SELECT id, full_name, avatar_url, email, points, reputation_score, major, verified, role FROM users WHERE status = 'active' ORDER BY reputation_score DESC, points DESC, id LIMIT 15");
     $log = qall('SELECT * FROM point_log WHERE user_id = ? ORDER BY id DESC LIMIT 12', [$u['id']]);
+    foreach (qall('SELECT v.xp_value, v.created_at, p.title, a.full_name AS author_name FROM project_vouches v JOIN projects p ON p.id = v.project_id JOIN users a ON a.id = v.author_id WHERE v.subject_id = ? ORDER BY v.id DESC LIMIT 12', [$u['id']]) as $vouch) {
+        $log[] = ['points' => (int) $vouch['xp_value'], 'reason' => 'Project vouch from ' . $vouch['author_name'] . ' · ' . excerpt($vouch['title'], 36), 'created_at' => $vouch['created_at']];
+    }
+    usort($log, fn($a, $b) => strcmp((string) $b['created_at'], (string) $a['created_at']));
+    $log = array_slice($log, 0, 12);
     $rank = 1 + (int) qval("SELECT COUNT(*) FROM users WHERE status = 'active' AND reputation_score > ?", [$rankScore]);
     $memberCount = max(1, (int) qval("SELECT COUNT(*) FROM users WHERE status = 'active'"));
     $nextScore = qval("SELECT MIN(reputation_score) FROM users WHERE status = 'active' AND reputation_score > ?", [$rankScore]);

@@ -185,6 +185,24 @@ CREATE TABLE project_members (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) {{ENGINE}};
 
+CREATE TABLE project_vouches (
+  id {{PK}},
+  project_id INT NOT NULL,
+  author_id INT NOT NULL,
+  subject_id INT NOT NULL,
+  rating INT NOT NULL DEFAULT 5,
+  traits VARCHAR(255) NULL,
+  body VARCHAR(800) NOT NULL,
+  xp_value INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NULL,
+  UNIQUE (project_id, author_id, subject_id),
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (subject_id) REFERENCES users(id) ON DELETE CASCADE
+) {{ENGINE}};
+CREATE INDEX idx_project_vouches_subject ON project_vouches(subject_id);
+
 CREATE TABLE project_applications (
   id {{PK}},
   project_id INT NOT NULL,

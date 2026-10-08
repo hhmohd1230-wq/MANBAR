@@ -34,6 +34,31 @@ $full = count($members) >= (int) $p['max_members'];
       </div>
     </div>
 
+    <?php if ($p['status'] === 'completed' && $isMember): ?>
+    <section class="card team-vouch-hub" id="team-vouches" aria-labelledby="team-vouch-title">
+      <div class="team-vouch-head">
+        <div><span class="team-vouch-icon"><?= icon('award', 22) ?></span><div><h2 id="team-vouch-title">Vouch for your project team</h2><p>Review the people you worked with. A strong, specific five-star vouch can award one full rank star: up to <?= RANK_STAR_XP ?> reputation XP.</p></div></div>
+        <span class="verified-work-chip"><?= icon('check-circle', 14) ?> Verified collaboration</span>
+      </div>
+      <div class="team-vouch-grid">
+        <?php $vouchTargets = 0; foreach ($members as $member): if ((int) $member['user_id'] === (int) $u['id']) continue; $vouchTargets++; $existingVouch = $myVouches[(int) $member['user_id']] ?? null; $selectedTraits = csv_list((string) ($existingVouch['traits'] ?? '')); ?>
+          <article class="team-vouch-card">
+            <div class="team-vouch-person"><?= avatar($member, 48) ?><div><a href="<?= e(url('profile/' . $member['user_id'])) ?>"><?= e($member['full_name']) ?></a><span><?= e($member['role']) ?></span></div><?php if ($existingVouch): ?><b><?= icon('check-circle', 13) ?> Vouched · +<?= (int) $existingVouch['xp_value'] ?> XP</b><?php endif ?></div>
+            <form method="post" action="<?= e(url('projects/' . $p['id'] . '/vouch/' . $member['user_id'])) ?>" data-ai-writing-form data-ai-context="verified teammate review">
+              <?= csrf_field() ?>
+              <fieldset class="vouch-rating"><legend>How was their contribution?</legend><?php for ($rating = 1; $rating <= 5; $rating++): ?><label><input type="radio" name="rating" value="<?= $rating ?>" <?= (int) ($existingVouch['rating'] ?? 5) === $rating ? 'checked' : '' ?>><span aria-hidden="true">★</span><span class="sr-only"><?= $rating ?> star<?= $rating === 1 ? '' : 's' ?></span></label><?php endfor ?></fieldset>
+              <fieldset class="vouch-traits" data-max-choices="3"><legend>Choose up to three strengths</legend><div><?php foreach (['Collaborative', 'Reliable', 'Strong communicator', 'High-quality work', 'Problem solver', 'Supportive leader'] as $trait): ?><label><input type="checkbox" name="traits[]" value="<?= e($trait) ?>" <?= in_array($trait, $selectedTraits, true) ? 'checked' : '' ?>><span><?= e($trait) ?></span></label><?php endforeach ?></div></fieldset>
+              <label class="vouch-note"><span>What did they do well?</span><textarea class="textarea" name="body" data-ai-writing="body" minlength="30" maxlength="800" required placeholder="Describe how they collaborated, communicated or delivered their work…"><?= e($existingVouch['body'] ?? '') ?></textarea></label>
+              <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
+              <div class="team-vouch-submit"><span><?= icon('sparkles', 14) ?> Rating + verified strengths determine XP</span><button class="btn btn-primary" type="submit"><?= icon('award', 15) ?> <?= $existingVouch ? 'Update vouch' : 'Publish vouch' ?></button></div>
+            </form>
+          </article>
+        <?php endforeach ?>
+        <?php if (!$vouchTargets): ?><div class="team-vouch-empty"><?= icon('users', 25) ?><b>No teammates to review yet</b><span>Invite teammates before completing a future project to build verified collaboration history.</span></div><?php endif ?>
+      </div>
+    </section>
+    <?php endif ?>
+
     <?php if ($isOwner && $apps): ?>
     <div class="card"><div class="card-title"><h3><?= icon('user-plus', 18) ?> Applications <span class="chip on sm"><?= count($apps) ?></span></h3></div>
       <div class="stack"><?php foreach ($apps as $a): ?>
@@ -94,7 +119,7 @@ $full = count($members) >= (int) $p['max_members'];
         <div class="field"><label class="f">Outcome (shown when completed)</label><textarea class="textarea" name="outcome" data-ai-writing="body" style="min-height:70px" placeholder="What did you achieve?"><?= e($p['outcome']) ?></textarea></div>
         <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
         <button class="btn btn-primary btn-block" type="submit">Save</button>
-        <div class="hint">Completing a project gives every member +30 points.</div>
+        <div class="hint">Completion gives every member +30 activity XP. Verified teammate vouches can award up to +<?= RANK_STAR_XP ?> reputation XP each.</div>
       </form>
       <form method="post" action="<?= e(url('projects/' . $p['id'] . '/delete')) ?>" data-confirm="Delete this project and all its tasks?" class="mt"><?= csrf_field() ?><button class="btn btn-danger btn-block btn-sm"><?= icon('trash', 15) ?> Delete project</button></form>
     </div>

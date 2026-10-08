@@ -28,7 +28,7 @@ $contacts = array_filter([
           <span class="profile-rank-orbit" aria-hidden="true"></span>
           <span class="profile-vfx profile-vfx-a" aria-hidden="true"></span><span class="profile-vfx profile-vfx-b" aria-hidden="true"></span>
           <?= avatar($p, 112) ?>
-          <span class="profile-rank-emblem rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?>" title="<?= e($lvl['name']) ?> rank" aria-label="<?= e($lvl['name']) ?> rank"></span>
+          <span class="profile-rank-emblem rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?>" title="<?= e($lvl['name']) ?> <?= (int) $lvl['star'] ?>-star rank" aria-label="<?= e($lvl['name']) ?> <?= (int) $lvl['star'] ?>-star rank"></span>
         </div>
         <div class="info">
           <h1 class="profile-name profile-name-<?= e($nameStyle) ?>"><?= e($p['full_name']) ?> <?= verified_badge($p) ?></h1>
@@ -96,7 +96,7 @@ $contacts = array_filter([
       <?php if (!$badges): ?><div class="card empty"><img src="<?= e(asset('img/empty.svg')) ?>" alt=""><h3>No badges yet</h3><p>Posting, commenting and joining projects unlock badges.</p></div><?php endif ?>
     <?php elseif ($tab === 'recommendations'): ?>
       <section class="profile-reputation-summary">
-        <div class="profile-rank-display"><span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?>"></span><div><small>Current reputation rank</small><h2><?= e($lvl['name']) ?></h2><p><?= number_format((int) $rankScore) ?> rank XP · <?= (int) $reputation['recommendation_count'] ?> verified recommendations</p></div></div>
+        <div class="profile-rank-display"><span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?>"></span><div><small>Current reputation rank</small><h2><?= e($lvl['name']) ?></h2><div class="rank-star-line"><?= rank_stars_html($lvl, 'rank-stars profile-summary-stars') ?><b>Star <?= (int) $lvl['star'] ?> of <?= RANK_STARS_PER_LEAGUE ?></b></div><p><?= number_format((int) $rankScore) ?> rank XP · <?= (int) $reputation['vouch_count'] ?> verified project vouches</p></div></div>
         <div class="profile-trust-display"><span><?= icon('shield', 22) ?></span><div><small>Trust score</small><strong><?= $reputation['trust_percent'] === null ? 'New' : (int) $reputation['trust_percent'] . '%' ?></strong><p>Based only on completed work and verified ratings.</p></div></div>
       </section>
       <?php if ($canRecommend): ?>
@@ -110,10 +110,13 @@ $contacts = array_filter([
         <div class="recommendation-locked"><?= icon('lock', 21) ?><div><b>Recommendations are earned through real work</b><p>Complete a project, marketplace order or mentoring session together before recommending this member.</p></div></div>
       <?php endif ?>
       <div class="recommendation-list">
+        <?php foreach ($vouches as $vouch): ?>
+          <article class="card recommendation-card project-vouch-record"><div class="person"><?= avatar($vouch, 46) ?><div class="grow"><a class="nm" href="<?= e(url('profile/' . $vouch['author_id'])) ?>"><?= e($vouch['full_name']) ?></a><?= verified_badge($vouch) ?><div class="xs muted">Vouched after “<?= e(excerpt($vouch['project_title'], 45)) ?>” · <?= e(time_ago($vouch['created_at'])) ?></div></div><span class="recommendation-stars"><?= str_repeat('★', (int) $vouch['rating']) ?><i><?= str_repeat('★', 5 - (int) $vouch['rating']) ?></i></span></div><?php if ($vouch['traits']): ?><div class="vouch-record-traits"><?php foreach (csv_list($vouch['traits']) as $trait): ?><span><?= icon('check', 12) ?> <?= e($trait) ?></span><?php endforeach ?></div><?php endif ?><p>“<?= e($vouch['body']) ?>”</p><small class="vouch-xp-award">+<?= (int) $vouch['xp_value'] ?> verified reputation XP</small></article>
+        <?php endforeach ?>
         <?php foreach ($recommendations as $recommendation): ?>
           <article class="card recommendation-card"><div class="person"><?= avatar($recommendation, 46) ?><div class="grow"><a class="nm" href="<?= e(url('profile/' . $recommendation['author_id'])) ?>"><?= e($recommendation['full_name']) ?></a><?= verified_badge($recommendation) ?><div class="xs muted"><?= e(ucfirst($recommendation['context_type'])) ?> collaboration · <?= e(time_ago($recommendation['created_at'])) ?></div></div><span class="recommendation-stars"><?= str_repeat('★', (int) $recommendation['rating']) ?><i><?= str_repeat('★', 5 - (int) $recommendation['rating']) ?></i></span></div><p>“<?= e($recommendation['body']) ?>”</p></article>
         <?php endforeach ?>
-        <?php if (!$recommendations): ?><div class="card empty"><span class="badge-ico tone-green"><?= icon('award', 28) ?></span><h3>No recommendations yet</h3><p>Verified recommendations appear after completed work with another MANBAR member.</p></div><?php endif ?>
+        <?php if (!$recommendations && !$vouches): ?><div class="card empty"><span class="badge-ico tone-green"><?= icon('award', 28) ?></span><h3>No verified feedback yet</h3><p>Recommendations and teammate vouches appear after completed work.</p></div><?php endif ?>
       </div>
     <?php elseif ($tab === 'courses'): ?>
       <div class="cards"><?php foreach ($courses as $c): ?><a class="card" href="<?= e(url('learn/' . $c['id'])) ?>" style="color:var(--ink)"><b><?= e($c['title']) ?></b><div class="xs muted" style="margin-top:6px"><?= (int) $c['students'] ?> students enrolled</div></a><?php endforeach ?></div>
@@ -133,14 +136,14 @@ $contacts = array_filter([
       <header class="profile-rank-showcase-head"><h3 id="profile-rank-title">Reputation rank</h3><span>Rank <?= $lvl['n'] ?></span></header>
       <div class="profile-rank-showcase-body">
         <div class="profile-rank-stage" aria-hidden="true"><span class="profile-rank-halo"></span><span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> profile-showcase-emblem"></span></div>
-        <div class="profile-rank-copy"><small>Current league</small><h4><?= e($lvl['name']) ?></h4><p><?= number_format((int) $rankScore) ?> reputation XP</p></div>
+        <div class="profile-rank-copy"><small>Current league</small><h4><?= e($lvl['name']) ?></h4><div class="rank-star-line profile-card-star-line"><?= rank_stars_html($lvl, 'rank-stars profile-card-stars') ?><b>Star <?= (int) $lvl['star'] ?> of <?= RANK_STARS_PER_LEAGUE ?></b></div><p><?= number_format((int) $rankScore) ?> reputation XP</p></div>
       </div>
       <div class="profile-rank-progress-head"><span>League progress</span><b><?= $lvl['next'] ? number_format(max(0, (int) $lvl['next_at'] - (int) $rankScore)) . ' XP to ' . e($lvl['next']) : 'Maximum rank' ?></b></div>
       <div class="profile-rank-progress" aria-label="<?= (int) $lvl['pct'] ?> percent to the next rank"><i style="--rank-pct:<?= (int) $lvl['pct'] ?>%"></i></div>
       <dl class="profile-rank-signals">
         <div><dt>Trust</dt><dd><?= $reputation['trust_percent'] === null ? 'New' : (int) $reputation['trust_percent'] . '%' ?></dd></div>
         <div><dt>Badges</dt><dd><?= count($badges) ?></dd></div>
-        <div><dt>Recs</dt><dd><?= (int) $reputation['recommendation_count'] ?></dd></div>
+        <div><dt>Vouches</dt><dd><?= (int) $reputation['vouch_count'] ?></dd></div>
       </dl>
       <a class="profile-rank-link" href="<?= e($own ? url('achievements') : url('profile/' . $p['id'] . '?tab=recommendations')) ?>"><?= $own ? 'Open rank journey' : 'View reputation' ?> <?= icon('arrow-right', 15) ?></a>
     </section>

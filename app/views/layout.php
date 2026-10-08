@@ -41,6 +41,8 @@ $title = $title ?? 'MANBAR';
       <span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> side-rank-emblem" aria-hidden="true"></span>
       <span class="side-rank-top"><small>Rank <?= $lvl['n'] ?></small><span>View <?= icon('arrow-right', 13) ?></span></span>
       <strong class="side-rank-name"><?= e($lvl['name']) ?></strong>
+      <?= rank_stars_html($lvl, 'rank-stars side-rank-stars') ?>
+      <span class="rank-star-label side-rank-star-label">Star <?= (int) $lvl['star'] ?> of <?= RANK_STARS_PER_LEAGUE ?></span>
       <span class="side-rank-xp"><?= number_format($rankScore) ?> XP</span>
       <span class="side-rank-progress" aria-label="<?= (int) $lvl['pct'] ?> percent to the next rank"><i style="--rank-pct:<?= (int) $lvl['pct'] ?>%"></i></span>
       <span class="side-rank-next"><?= $lvl['next'] ? number_format(max(0, (int) $lvl['next_at'] - $rankScore)) . ' XP to ' . e($lvl['next']) : 'Highest rank achieved' ?></span>

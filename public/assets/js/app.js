@@ -1137,6 +1137,15 @@
       if (empty) empty.hidden = visible !== 0;
     }));
   }
+  $$('[data-max-choices]').forEach(group => {
+    const limit = Number(group.dataset.maxChoices) || 3;
+    const boxes = $$('input[type="checkbox"]', group);
+    boxes.forEach(box => box.addEventListener('change', () => {
+      if (!box.checked || boxes.filter(item => item.checked).length <= limit) return;
+      box.checked = false;
+      toast(`Choose up to ${limit} verified strengths.`, 'error');
+    }));
+  });
   $$('[data-autosubmit]').forEach(el => el.addEventListener('change', () => el.form.requestSubmit()));
   const chat = $('.chat'); if (chat && !chat.classList.contains('dm')) chat.scrollTop = 0;
 })();

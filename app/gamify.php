@@ -1,9 +1,12 @@
 <?php
 /** Points, levels, badges, notifications. */
 
+const RANK_STAR_XP = 150;
+const RANK_STARS_PER_LEAGUE = 3;
+const RANK_LEAGUE_XP = RANK_STAR_XP * RANK_STARS_PER_LEAGUE;
 const LEVELS = [
-    [0, 'Bronze'], [100, 'Silver'], [250, 'Gold'], [500, 'Platinum'],
-    [900, 'Diamond'], [1500, 'Legend'], [2400, 'Master'], [4000, 'Celestial'],
+    [0, 'Bronze'], [450, 'Silver'], [900, 'Gold'], [1350, 'Platinum'],
+    [1800, 'Diamond'], [2250, 'Legend'], [2700, 'Master'], [3150, 'Celestial'],
 ];
 
 const BADGE_CATALOG = [
@@ -37,10 +40,28 @@ function level_for(int $points): array
 {
     $idx = 0;
     foreach (LEVELS as $i => [$min]) if ($points >= $min) $idx = $i;
-    $next = LEVELS[$idx + 1] ?? null;
     $cur = LEVELS[$idx];
-    $pct = $next ? (int) round(($points - $cur[0]) / ($next[0] - $cur[0]) * 100) : 100;
-    return ['n' => $idx + 1, 'name' => $cur[1], 'current_at' => $cur[0], 'next' => $next[1] ?? null, 'next_at' => $next[0] ?? null, 'pct' => max(0, min(100, $pct))];
+    $star = max(1, min(RANK_STARS_PER_LEAGUE, (int) floor(max(0, $points - $cur[0]) / RANK_STAR_XP) + 1));
+    $currentAt = $cur[0] + (($star - 1) * RANK_STAR_XP);
+    $atMaximum = $idx === count(LEVELS) - 1 && $star === RANK_STARS_PER_LEAGUE;
+    $nextAt = $atMaximum ? null : $currentAt + RANK_STAR_XP;
+    $nextLeague = $star === RANK_STARS_PER_LEAGUE ? (LEVELS[$idx + 1][1] ?? null) : $cur[1];
+    $nextStar = $star === RANK_STARS_PER_LEAGUE ? 1 : $star + 1;
+    $next = $atMaximum ? null : $nextLeague . ' ' . str_repeat('★', $nextStar);
+    $pct = $nextAt ? (int) round(($points - $currentAt) / RANK_STAR_XP * 100) : 100;
+    return [
+        'n' => $idx + 1, 'name' => $cur[1], 'star' => $star, 'stars' => RANK_STARS_PER_LEAGUE,
+        'current_at' => $currentAt, 'league_at' => $cur[0], 'next' => $next, 'next_at' => $nextAt,
+        'next_league' => LEVELS[$idx + 1][1] ?? null, 'pct' => max(0, min(100, $pct)),
+        'league_pct' => min(100, max(0, (int) round(($points - $cur[0]) / RANK_LEAGUE_XP * 100))),
+    ];
+}
+
+function rank_stars_html(array $level, string $class = 'rank-stars'): string
+{
+    $html = '<span class="' . e($class) . '" aria-label="' . (int) $level['star'] . ' of ' . RANK_STARS_PER_LEAGUE . ' stars">';
+    for ($i = 1; $i <= RANK_STARS_PER_LEAGUE; $i++) $html .= '<i class="' . ($i <= (int) $level['star'] ? 'is-earned' : '') . '" data-star="' . $i . '" aria-hidden="true">★</i>';
+    return $html . '</span>';
 }
 
 function rank_key(int $level): string
@@ -73,6 +94,28 @@ function ensure_reputation_schema(): void
         FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (subject_id) REFERENCES users(id) ON DELETE CASCADE
     )$engine");
+    qexec("CREATE TABLE IF NOT EXISTS project_vouches (
+        id $pk,
+        project_id INT NOT NULL,
+        author_id INT NOT NULL,
+        subject_id INT NOT NULL,
+        rating INT NOT NULL DEFAULT 5,
+        traits VARCHAR(255) NULL,
+        body VARCHAR(800) NOT NULL,
+        xp_value INT NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NULL,
+        UNIQUE (project_id, author_id, subject_id),
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (subject_id) REFERENCES users(id) ON DELETE CASCADE
+    )$engine");
+}
+
+function project_vouch_xp(int $rating, int $traitCount): int
+{
+    $base = [1 => 0, 2 => 15, 3 => 45, 4 => 85, 5 => 120][max(1, min(5, $rating))];
+    return min(RANK_STAR_XP, $base + (min(3, max(0, $traitCount)) * 10));
 }
 
 function reputation_breakdown(int $uid): array
@@ -81,25 +124,27 @@ function reputation_breakdown(int $uid): array
     $activity = (int) qval('SELECT points FROM users WHERE id = ?', [$uid]);
     $postReactions = (int) qval("SELECT COUNT(*) FROM reactions r JOIN posts p ON p.id = r.target_id WHERE r.target_type = 'post' AND p.user_id = ? AND r.user_id <> ?", [$uid, $uid]);
     $commentReactions = (int) qval("SELECT COUNT(*) FROM reactions r JOIN comments c ON c.id = r.target_id WHERE r.target_type = 'comment' AND c.user_id = ? AND r.user_id <> ?", [$uid, $uid]);
-    $review = qrow('SELECT COUNT(*) AS total, COALESCE(AVG(r.rating),0) AS average, COALESCE(SUM(CASE WHEN r.rating = 5 THEN 45 WHEN r.rating = 4 THEN 30 WHEN r.rating = 3 THEN 10 ELSE 0 END),0) AS xp FROM service_reviews r JOIN services s ON s.id = r.service_id WHERE s.user_id = ?', [$uid]);
+    $review = qrow('SELECT COUNT(*) AS total, COALESCE(AVG(r.rating),0) AS average, COALESCE(SUM(CASE WHEN r.rating = 5 THEN 100 WHEN r.rating = 4 THEN 70 WHEN r.rating = 3 THEN 35 WHEN r.rating = 2 THEN 10 ELSE 0 END),0) AS xp FROM service_reviews r JOIN services s ON s.id = r.service_id WHERE s.user_id = ?', [$uid]);
     $recommendation = qrow('SELECT COUNT(*) AS total, COALESCE(AVG(rating),0) AS average, COALESCE(SUM(rating * 12),0) AS xp FROM recommendations WHERE subject_id = ?', [$uid]);
+    $vouch = qrow('SELECT COUNT(*) AS total, COALESCE(AVG(rating),0) AS average, COALESCE(SUM(xp_value),0) AS xp FROM project_vouches WHERE subject_id = ?', [$uid]);
     $serviceCompletions = (int) qval("SELECT COUNT(*) FROM service_requests r JOIN services s ON s.id = r.service_id WHERE s.user_id = ? AND r.status = 'completed'", [$uid]);
     $projectCompletions = (int) qval("SELECT COUNT(DISTINCT p.id) FROM projects p LEFT JOIN project_members pm ON pm.project_id = p.id WHERE p.status = 'completed' AND (p.owner_id = ? OR pm.user_id = ?)", [$uid, $uid]);
     $mentorCompletions = (int) qval("SELECT COUNT(*) FROM mentorship_requests WHERE status = 'completed' AND (student_id = ? OR mentor_id = ?)", [$uid, $uid]);
-    $qualitySignals = (int) ($review['total'] ?? 0) + (int) ($recommendation['total'] ?? 0);
+    $qualitySignals = (int) ($review['total'] ?? 0) + (int) ($recommendation['total'] ?? 0) + (int) ($vouch['total'] ?? 0);
     $qualityAverage = $qualitySignals
-        ? (((float) ($review['average'] ?? 0) * (int) ($review['total'] ?? 0)) + ((float) ($recommendation['average'] ?? 0) * (int) ($recommendation['total'] ?? 0))) / $qualitySignals
+        ? (((float) ($review['average'] ?? 0) * (int) ($review['total'] ?? 0)) + ((float) ($recommendation['average'] ?? 0) * (int) ($recommendation['total'] ?? 0)) + ((float) ($vouch['average'] ?? 0) * (int) ($vouch['total'] ?? 0))) / $qualitySignals
         : 0.0;
     $parts = [
         'activity' => $activity,
         'appreciation' => ($postReactions * 2) + $commentReactions,
         'reviews' => (int) ($review['xp'] ?? 0),
+        'vouches' => (int) ($vouch['xp'] ?? 0),
         'recommendations' => (int) ($recommendation['xp'] ?? 0),
         'completed_work' => ($serviceCompletions * 20) + ($projectCompletions * 30) + ($mentorCompletions * 20),
     ];
     return $parts + [
         'score' => array_sum($parts), 'post_reactions' => $postReactions, 'comment_reactions' => $commentReactions,
-        'review_count' => (int) ($review['total'] ?? 0), 'recommendation_count' => (int) ($recommendation['total'] ?? 0),
+        'review_count' => (int) ($review['total'] ?? 0), 'recommendation_count' => (int) ($recommendation['total'] ?? 0), 'vouch_count' => (int) ($vouch['total'] ?? 0),
         'quality_average' => round($qualityAverage, 1), 'trust_percent' => $qualitySignals ? (int) round($qualityAverage / 5 * 100) : null,
         'service_completions' => $serviceCompletions, 'project_completions' => $projectCompletions, 'mentor_completions' => $mentorCompletions,
     ];
@@ -181,12 +226,12 @@ function badge_progress(string $code, array $stats): array
         'knowledge_seeker' => ['courses_completed', 3, 'Complete three courses', 'learn'],
         'mentor_milestone' => ['mentor_completed', 1, 'Complete a mentoring session', 'mentors'],
         'campus_connector' => ['followers', 10, 'Reach ten followers', 'people'],
-        'innovator_rank' => ['rank_score', 250, 'Reach the Gold rank', 'achievements'],
-        'pioneer_rank' => ['rank_score', 500, 'Reach the Platinum rank', 'achievements'],
-        'champion_rank' => ['rank_score', 900, 'Reach the Diamond rank', 'achievements'],
-        'legend_rank' => ['rank_score', 1500, 'Reach the Legend rank', 'achievements'],
-        'master_rank' => ['rank_score', 2400, 'Reach the Master rank', 'achievements'],
-        'celestial_rank' => ['rank_score', 4000, 'Reach the Celestial rank', 'achievements'],
+        'innovator_rank' => ['rank_score', LEVELS[2][0], 'Reach the Gold rank', 'achievements'],
+        'pioneer_rank' => ['rank_score', LEVELS[3][0], 'Reach the Platinum rank', 'achievements'],
+        'champion_rank' => ['rank_score', LEVELS[4][0], 'Reach the Diamond rank', 'achievements'],
+        'legend_rank' => ['rank_score', LEVELS[5][0], 'Reach the Legend rank', 'achievements'],
+        'master_rank' => ['rank_score', LEVELS[6][0], 'Reach the Master rank', 'achievements'],
+        'celestial_rank' => ['rank_score', LEVELS[7][0], 'Reach the Celestial rank', 'achievements'],
     ];
     [$key, $target, $label, $path] = $rules[$code] ?? ['points', 1, 'Keep contributing', 'feed'];
     $current = min((int) ($stats[$key] ?? 0), $target);
@@ -238,8 +283,8 @@ function check_badges(int $uid): void
         'centurion' => ['points', 100], 'project_finisher' => ['completed_projects', 1],
         'community_helper' => ['comments', 25], 'knowledge_seeker' => ['courses_completed', 3],
         'mentor_milestone' => ['mentor_completed', 1], 'campus_connector' => ['followers', 10],
-        'innovator_rank' => ['rank_score', 250], 'pioneer_rank' => ['rank_score', 500], 'champion_rank' => ['rank_score', 900],
-        'legend_rank' => ['rank_score', 1500], 'master_rank' => ['rank_score', 2400], 'celestial_rank' => ['rank_score', 4000],
+        'innovator_rank' => ['rank_score', LEVELS[2][0]], 'pioneer_rank' => ['rank_score', LEVELS[3][0]], 'champion_rank' => ['rank_score', LEVELS[4][0]],
+        'legend_rank' => ['rank_score', LEVELS[5][0]], 'master_rank' => ['rank_score', LEVELS[6][0]], 'celestial_rank' => ['rank_score', LEVELS[7][0]],
     ];
     foreach ($rules as $code => [$key, $target]) if (($stats[$key] ?? 0) >= $target) give_badge($uid, $code);
 }

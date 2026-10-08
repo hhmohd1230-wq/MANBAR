@@ -114,7 +114,9 @@ function page_project(int $id): void
     $tasks = ($isMember || is_admin()) ? qall('SELECT t.*, u.full_name AS assignee FROM project_tasks t LEFT JOIN users u ON u.id = t.assignee_id WHERE t.project_id = ? ORDER BY t.id', [$id]) : [];
     $msgs = ($isMember || is_admin()) ? qall('SELECT m.*, u.full_name, u.avatar_url, u.email FROM project_messages m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? ORDER BY m.id DESC LIMIT 40', [$id]) : [];
     $updates = qall('SELECT m.*, u.full_name, u.avatar_url, u.email FROM project_messages m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? AND m.is_update = 1 ORDER BY m.id DESC LIMIT 10', [$id]);
-    render('project', compact('u', 'p', 'isOwner', 'isMember', 'members', 'apps', 'myApp', 'tasks', 'msgs', 'updates'));
+    $myVouches = [];
+    if ($isMember && $p['status'] === 'completed') foreach (qall('SELECT * FROM project_vouches WHERE project_id = ? AND author_id = ?', [$id, $u['id']]) as $vouch) $myVouches[(int) $vouch['subject_id']] = $vouch;
+    render('project', compact('u', 'p', 'isOwner', 'isMember', 'members', 'apps', 'myApp', 'tasks', 'msgs', 'updates', 'myVouches'));
 }
 
 function project_apply(int $id): void
@@ -193,6 +195,33 @@ function project_message(int $id): void
     }
     redirect("projects/$id#chat");
 }
+
+function project_vouch(int $id, int $memberId): void
+{
+    $u = require_login();
+    $p = load_project($id);
+    $authorId = (int) $u['id'];
+    if ($p['status'] !== 'completed') { flash('Team vouches unlock after the project is completed.', 'error'); redirect("projects/$id"); }
+    if ($authorId === $memberId || !project_member($id, $authorId) || !project_member($id, $memberId)) abort(403);
+    $subject = qrow('SELECT id, full_name FROM users WHERE id = ? AND status = ?', [$memberId, 'active']) ?? abort(404);
+    $allowedTraits = ['Collaborative', 'Reliable', 'Strong communicator', 'High-quality work', 'Problem solver', 'Supportive leader'];
+    $postedTraits = is_array($_POST['traits'] ?? null) ? $_POST['traits'] : [];
+    $traits = array_values(array_slice(array_intersect($allowedTraits, array_map('strval', $postedTraits)), 0, 3));
+    $rating = max(1, min(5, input_int('rating', 5)));
+    $body = mb_substr(trim((string) ($_POST['body'] ?? '')), 0, 800);
+    if (mb_strlen($body) < 30) { flash('Write at least 30 characters about how this teammate contributed.', 'error'); redirect("projects/$id#team-vouches"); }
+    $xp = project_vouch_xp($rating, count($traits));
+    $existing = qrow('SELECT id FROM project_vouches WHERE project_id = ? AND author_id = ? AND subject_id = ?', [$id, $authorId, $memberId]);
+    $data = ['rating' => $rating, 'traits' => $traits ? implode(',', $traits) : null, 'body' => $body, 'xp_value' => $xp, 'updated_at' => now()];
+    if ($existing) update('project_vouches', $data, 'id = ?', [$existing['id']]);
+    else insert('project_vouches', ['project_id' => $id, 'author_id' => $authorId, 'subject_id' => $memberId] + $data);
+    refresh_reputation_score($memberId);
+    check_badges($memberId);
+    notify($memberId, 'review', $u['full_name'] . ' vouched for your work on “' . excerpt($p['title'], 48) . '” — +' . $xp . ' reputation XP.', "profile/$memberId?tab=recommendations");
+    flash(($existing ? 'Vouch updated. ' : 'Vouch published. ') . $subject['full_name'] . ' receives +' . $xp . ' reputation XP.');
+    redirect("projects/$id#team-vouches");
+}
+
 function project_status(int $id): void
 {
     $u = require_login();
@@ -213,7 +242,7 @@ function project_status(int $id): void
         $data['outcome'] = mb_substr(trim((string) ($_POST['outcome'] ?? '')), 0, 3000) ?: null;
         if ($p['status'] !== 'completed') foreach (qall('SELECT user_id FROM project_members WHERE project_id = ?', [$id]) as $m) {
             award_points((int) $m['user_id'], 30, 'Project completed');
-            notify((int) $m['user_id'], 'completed', '“' . excerpt($p['title'], 50) . '” was marked completed — +30 points!', "projects/$id");
+            notify((int) $m['user_id'], 'completed', '“' . excerpt($p['title'], 50) . '” was completed — +30 activity XP. You can now vouch for your teammates.', "projects/$id#team-vouches");
         }
     }
     if ($p['max_members'] != input_int('max_members', (int) $p['max_members']) && input_int('max_members')) $data['max_members'] = max(2, min(30, input_int('max_members')));
