@@ -36,13 +36,15 @@ $title = $title ?? 'MANBAR';
       <a class="<?= trim(nav_on('/messages')) ?>" href="<?= e(url('messages')) ?>"><?= icon('message') ?> Messages <?php if ($msgN): ?><span class="count"><?= $msgN ?></span><?php endif ?></a>
       <?php if ($me['role'] === 'admin'): ?><div class="nav-label">Administration</div><a href="<?= e(url('admin')) ?>"><?= icon('shield') ?> Admin dashboard</a><?php endif ?>
     </nav>
-    <div class="side-card">
+    <a class="side-card side-rank-card rank-theme-<?= e(rank_key((int) $lvl['n'])) ?>" href="<?= e(url('achievements')) ?>" aria-label="View <?= e($lvl['name']) ?> rank progression">
+      <span class="side-rank-effects" aria-hidden="true"><i></i><i></i><i></i></span>
       <span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> side-rank-emblem" aria-hidden="true"></span>
-      <div class="xs" style="opacity:.85;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Rank <?= $lvl['n'] ?></div>
-      <div class="lvl"><?= e($lvl['name']) ?></div>
-      <div class="progress"><i style="width:<?= $lvl['pct'] ?>%"></i></div>
-      <div class="xs" style="opacity:.9"><?= number_format($rankScore) ?> XP<?= $lvl['next'] ? ' · ' . ($lvl['next_at'] - $rankScore) . ' to ' . e($lvl['next']) : ' · Max rank' ?></div>
-    </div>
+      <span class="side-rank-top"><small>Rank <?= $lvl['n'] ?></small><span>View <?= icon('arrow-right', 13) ?></span></span>
+      <strong class="side-rank-name"><?= e($lvl['name']) ?></strong>
+      <span class="side-rank-xp"><?= number_format($rankScore) ?> XP</span>
+      <span class="side-rank-progress" aria-label="<?= (int) $lvl['pct'] ?> percent to the next rank"><i style="--rank-pct:<?= (int) $lvl['pct'] ?>%"></i></span>
+      <span class="side-rank-next"><?= $lvl['next'] ? number_format(max(0, (int) $lvl['next_at'] - $rankScore)) . ' XP to ' . e($lvl['next']) : 'Highest rank achieved' ?></span>
+    </a>
   </aside>
   <button class="icon-btn sidebar-restore" id="sidebarRestore" type="button" aria-label="Show sidebar" title="Show sidebar"><?= icon('panel-left-open', 20) ?></button>
   <div class="main">
