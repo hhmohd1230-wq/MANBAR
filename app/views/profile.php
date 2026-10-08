@@ -25,6 +25,7 @@ $contacts = array_filter([
       </div>
       <div class="profile-top">
         <div class="profile-avatar-stage profile-rank-<?= e(rank_key((int) $lvl['n'])) ?>" aria-label="<?= e($p['full_name']) ?> profile photo">
+          <span class="profile-rank-orbit" aria-hidden="true"></span>
           <span class="profile-vfx profile-vfx-a" aria-hidden="true"></span><span class="profile-vfx profile-vfx-b" aria-hidden="true"></span>
           <?= avatar($p, 112) ?>
           <span class="profile-rank-emblem rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?>" title="<?= e($lvl['name']) ?> rank" aria-label="<?= e($lvl['name']) ?> rank"></span>
@@ -126,10 +127,23 @@ $contacts = array_filter([
       <div class="tag-cloud"><?php foreach ($p['skills'] as $s): ?><a class="chip skill-chip" href="<?= e(url('people?skill=' . urlencode($s))) ?>"><?= e($s) ?></a><?php endforeach ?><?php if (!$p['skills']): ?><span class="muted small">No skills added yet.</span><?php endif ?></div>
       <?php if ($p['interests']): ?><hr class="divider"><div class="card-title" style="margin-bottom:8px"><h3 style="font-size:14px">Interests</h3></div><div class="tag-cloud"><?php foreach ($p['interests'] as $s): ?><span class="chip outline"><?= e($s) ?></span><?php endforeach ?></div><?php endif ?>
     </div>
-    <div class="card">
-      <div class="card-title"><h3>Reputation rank</h3><span class="chip on">Rank <?= $lvl['n'] ?></span></div>
-      <div class="lvl-ring"><span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> profile-side-rank"></span><div class="grow"><b style="font-size:17px"><?= e($lvl['name']) ?></b><div class="progress" style="margin:6px 0"><i style="width:<?= $lvl['pct'] ?>%"></i></div><div class="xs muted"><?= number_format((int) $rankScore) ?> XP<?= $lvl['next'] ? ' · next: ' . e($lvl['next']) : '' ?></div></div></div>
-    </div>
+    <section class="profile-rank-showcase rank-theme-<?= e(rank_key((int) $lvl['n'])) ?>" aria-labelledby="profile-rank-title">
+      <span class="profile-rank-sweep" aria-hidden="true"></span>
+      <span class="profile-rank-particles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      <header class="profile-rank-showcase-head"><h3 id="profile-rank-title">Reputation rank</h3><span>Rank <?= $lvl['n'] ?></span></header>
+      <div class="profile-rank-showcase-body">
+        <div class="profile-rank-stage" aria-hidden="true"><span class="profile-rank-halo"></span><span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> profile-showcase-emblem"></span></div>
+        <div class="profile-rank-copy"><small>Current league</small><h4><?= e($lvl['name']) ?></h4><p><?= number_format((int) $rankScore) ?> reputation XP</p></div>
+      </div>
+      <div class="profile-rank-progress-head"><span>League progress</span><b><?= $lvl['next'] ? number_format(max(0, (int) $lvl['next_at'] - (int) $rankScore)) . ' XP to ' . e($lvl['next']) : 'Maximum rank' ?></b></div>
+      <div class="profile-rank-progress" aria-label="<?= (int) $lvl['pct'] ?> percent to the next rank"><i style="--rank-pct:<?= (int) $lvl['pct'] ?>%"></i></div>
+      <dl class="profile-rank-signals">
+        <div><dt>Trust</dt><dd><?= $reputation['trust_percent'] === null ? 'New' : (int) $reputation['trust_percent'] . '%' ?></dd></div>
+        <div><dt>Badges</dt><dd><?= count($badges) ?></dd></div>
+        <div><dt>Recs</dt><dd><?= (int) $reputation['recommendation_count'] ?></dd></div>
+      </dl>
+      <a class="profile-rank-link" href="<?= e($own ? url('achievements') : url('profile/' . $p['id'] . '?tab=recommendations')) ?>"><?= $own ? 'Open rank journey' : 'View reputation' ?> <?= icon('arrow-right', 15) ?></a>
+    </section>
     <?php if ($mentor): ?><div class="card"><div class="card-title"><h3><?= icon('compass', 17) ?> Mentor</h3></div><p class="small"><b>Expertise:</b> <?= e($mentor['expertise']) ?></p><?php if (!$own): ?><a class="btn btn-block" href="<?= e(url('mentors/' . $p['id'])) ?>">Request mentorship</a><?php endif ?></div><?php endif ?>
   </aside>
 </div>
