@@ -2,7 +2,7 @@
 $title = 'Achievements';
 $earned = count(array_filter($badges, fn($badge) => (int) $badge['earned']));
 $totalBadges = count($badges);
-$toNext = $lvl['next'] ? max(0, (int) $lvl['next_at'] - (int) $u['points']) : 0;
+$toNext = $lvl['next'] ? max(0, (int) $lvl['next_at'] - (int) $rankScore) : 0;
 $rankPercent = max(1, (int) ceil($rank / max(1, $memberCount) * 100));
 $rankTrack = count($levels) > 1 ? (($lvl['n'] - 1) / (count($levels) - 1)) * 100 : 100;
 $tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legendary' => 'Legendary'];
@@ -26,19 +26,20 @@ $tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legenda
     </div>
     <div class="achievement-crest" aria-hidden="true">
       <span class="rank-emblem rank-<?= e(rank_key((int) $lvl['n'])) ?> rank-emblem-hero"></span>
-      <small>RANK <?= (int) $lvl['n'] ?></small>
+      <small>RANK <?= (int) $lvl['n'] ?> · STAR <?= (int) $lvl['star'] ?></small>
     </div>
     <div class="achievement-level-copy">
       <p class="achievement-level-label">Current rank</p>
       <h2 id="current-rank-title"><?= e($lvl['name']) ?></h2>
-      <p><?= $lvl['next'] ? 'Your next rank is ' . e($lvl['next']) . '. Keep helping the campus community to unlock it.' : 'You reached MANBAR’s highest rank. Your contribution now sets the standard for the campus.' ?></p>
+      <div class="rank-star-line achievement-star-line"><?= rank_stars_html($lvl, 'rank-stars achievement-rank-stars') ?><b><?= e($lvl['name']) ?> · Star <?= (int) $lvl['star'] ?> of <?= RANK_STARS_PER_LEAGUE ?></b></div>
+      <p><?= $lvl['next'] ? 'Your next milestone is ' . e($lvl['next']) . '. Every star needs ' . RANK_STAR_XP . ' verified reputation XP.' : 'You reached Celestial III, MANBAR’s highest rank. Your contribution now sets the standard for the campus.' ?></p>
       <div class="achievement-xp-head"><span><b><?= number_format((int) $rankScore) ?></b> rank XP</span><span><?= $lvl['next'] ? number_format($toNext) . ' XP to ' . e($lvl['next']) : 'Maximum rank reached' ?></span></div>
       <div class="achievement-xp" role="progressbar" aria-label="Progress to <?= e($lvl['next'] ?: $lvl['name']) ?>" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= (int) $lvl['pct'] ?>"><i style="--xp:<?= (int) $lvl['pct'] ?>%"></i></div>
     </div>
     <dl class="achievement-readout">
       <div><dt>Campus rank</dt><dd>#<?= (int) $rank ?></dd><small>Top <?= (int) $rankPercent ?>% of <?= (int) $memberCount ?></small></div>
       <div><dt>Badge vault</dt><dd><?= (int) $earned ?><span>/<?= (int) $totalBadges ?></span></dd><small><?= (int) round($earned / max(1, $totalBadges) * 100) ?>% collected</small></div>
-      <div><dt>Trust score</dt><dd><?= $reputation['trust_percent'] === null ? '—' : (int) $reputation['trust_percent'] . '%' ?></dd><small><?= (int) $reputation['review_count'] + (int) $reputation['recommendation_count'] ?> verified ratings</small></div>
+      <div><dt>Trust score</dt><dd><?= $reputation['trust_percent'] === null ? '—' : (int) $reputation['trust_percent'] . '%' ?></dd><small><?= (int) $reputation['review_count'] + (int) $reputation['recommendation_count'] + (int) $reputation['vouch_count'] ?> verified ratings</small></div>
     </dl>
   </section>
 
@@ -48,6 +49,7 @@ $tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legenda
       <div><dt><?= icon('sparkles', 15) ?> Activity</dt><dd><?= number_format((int) $reputation['activity']) ?></dd></div>
       <div><dt><?= icon('heart', 15) ?> Community appreciation</dt><dd><?= number_format((int) $reputation['appreciation']) ?></dd></div>
       <div><dt><?= icon('star', 15) ?> Client reviews</dt><dd><?= number_format((int) $reputation['reviews']) ?></dd></div>
+      <div><dt><?= icon('users', 15) ?> Project vouches</dt><dd><?= number_format((int) $reputation['vouches']) ?></dd></div>
       <div><dt><?= icon('award', 15) ?> Recommendations</dt><dd><?= number_format((int) $reputation['recommendations']) ?></dd></div>
       <div><dt><?= icon('check-circle', 15) ?> Completed work</dt><dd><?= number_format((int) $reputation['completed_work']) ?></dd></div>
     </dl>
@@ -55,7 +57,7 @@ $tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legenda
 
   <section class="rank-road" aria-labelledby="rank-road-title" style="--rank-progress:<?= number_format($rankTrack, 2, '.', '') ?>%">
     <div class="achievement-section-head">
-      <div><h2 id="rank-road-title">Your rank journey</h2><p>Eight ranks lead from your first contribution to becoming a MANBAR Icon.</p></div>
+      <div><h2 id="rank-road-title">Your rank journey</h2><p>Three 150-XP stars complete each league. Finish Star III to promote into the next rank.</p></div>
       <?php if ($rankGap > 0): ?><span><?= icon('trending', 15) ?> <?= (int) $rankGap ?> XP from the next campus position</span><?php endif ?>
     </div>
     <div class="rank-road-scroll">
@@ -67,7 +69,8 @@ $tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legenda
           <li class="<?= $state ?>" aria-current="<?= $number === $lvl['n'] ? 'step' : 'false' ?>">
             <span class="rank-road-node"><span class="rank-emblem rank-<?= e(rank_key($number)) ?>"></span></span>
             <b><?= e($name) ?></b>
-            <small><?= number_format((int) $minimum) ?> XP</small>
+            <?= rank_stars_html(['star' => $number < $lvl['n'] ? 3 : ($number === $lvl['n'] ? $lvl['star'] : 0)], 'rank-stars rank-road-stars') ?>
+            <small>Stars I · II · III · <?= number_format((int) $minimum) ?> XP entry</small>
           </li>
         <?php endforeach ?>
       </ol>
@@ -162,7 +165,7 @@ $tierNames = ['standard' => 'Core', 'rare' => 'Rare', 'epic' => 'Epic', 'legenda
       <details class="achievement-panel points-guide">
         <summary><span><?= icon('info', 18) ?> How to earn XP</span><?= icon('chevron-down', 17) ?></summary>
         <div class="points-guide-list">
-          <?php foreach ([['Complete your profile', '+20'], ['Publish a post', '+10'], ['Start a project', '+15'], ['Join a project team', '+10'], ['Complete a project', '+30'], ['Write a comment', '+3'], ['Receive a reaction', '+1'], ['List a service', '+10'], ['Finish a course', '+25'], ['Mentoring session', '+5 / +20']] as [$action, $points]): ?>
+          <?php foreach ([['Five-star teammate vouch', 'up to +150'], ['Five-star client review', '+100'], ['Verified recommendation', 'up to +60'], ['Complete a project', '+30'], ['Finish a course', '+25'], ['Complete your profile', '+20'], ['Start a project', '+15'], ['Publish a post', '+10'], ['Join a project team', '+10'], ['Receive a reaction', '+1 / +2']] as [$action, $points]): ?>
             <div><span><?= e($action) ?></span><b><?= e($points) ?></b></div>
           <?php endforeach ?>
         </div>

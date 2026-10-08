@@ -82,11 +82,12 @@ function page_profile(int $id): void
         FROM follows f JOIN users u ON u.id = f.followed_id
         WHERE f.follower_id = ? AND u.status = 'active' ORDER BY f.created_at DESC LIMIT 100", [$id]);
     $recommendations = qall('SELECT r.*, u.full_name, u.avatar_url, u.email, u.headline, u.major, u.role, u.verified, u.reputation_score FROM recommendations r JOIN users u ON u.id = r.author_id WHERE r.subject_id = ? ORDER BY r.id DESC', [$id]);
+    $vouches = qall('SELECT v.*, u.full_name, u.avatar_url, u.email, u.headline, u.major, u.role, u.verified, u.reputation_score, p.title AS project_title FROM project_vouches v JOIN users u ON u.id = v.author_id JOIN projects p ON p.id = v.project_id WHERE v.subject_id = ? ORDER BY v.id DESC', [$id]);
     $reputation = reputation_breakdown($id);
     $canRecommend = (int) $u['id'] !== $id ? recommendation_eligibility((int) $u['id'], $id) : null;
     $myRecommendation = (int) $u['id'] !== $id ? qrow('SELECT * FROM recommendations WHERE author_id = ? AND subject_id = ?', [$u['id'], $id]) : null;
     $lvl = level_for($rankScore);
-    render('profile', compact('u', 'p', 'tab', 'posts', 'projects', 'services', 'badges', 'courses', 'mentor', 'followers', 'following', 'recommendations', 'reputation', 'canRecommend', 'myRecommendation', 'rankScore', 'lvl'));
+    render('profile', compact('u', 'p', 'tab', 'posts', 'projects', 'services', 'badges', 'courses', 'mentor', 'followers', 'following', 'recommendations', 'vouches', 'reputation', 'canRecommend', 'myRecommendation', 'rankScore', 'lvl'));
 }
 
 function page_me(): void { redirect('profile/' . require_login()['id']); }

@@ -64,6 +64,7 @@ return [
     ['POST', '/projects/{id}/tasks',      'project_task_add'],
     ['POST', '/projects/{id}/tasks/{tid}','project_task_move'],
     ['POST', '/projects/{id}/message',    'project_message'],
+    ['POST', '/projects/{id}/vouch/{memberId}', 'project_vouch'],
     ['POST', '/projects/{id}/status',     'project_status'],
     ['POST', '/projects/{id}/delete',     'project_delete'],
 
