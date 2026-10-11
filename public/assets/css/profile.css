@@ -1,0 +1,52 @@
+/* Profile page: the About / Connect card gets a banner header, a quote-style bio and brand-coloured contact buttons. */
+
+.profile-about-card.card{position:relative;padding:0;overflow:hidden;border-radius:22px;
+  background:radial-gradient(420px 220px at 100% 100%,color-mix(in srgb,var(--g300) 16%,transparent),transparent 70%),var(--card)}
+
+/* banner header */
+.profile-about-card .profile-about-head{position:relative;overflow:hidden;gap:12px;padding:20px 20px 22px;color:#fff;
+  background:radial-gradient(260px 160px at 100% 0%,rgba(200,245,106,.35),transparent 65%),linear-gradient(135deg,#0b3a24 0%,#13573a 55%,#1f8a5b 100%)}
+.profile-about-card .profile-about-head::before{content:"";position:absolute;inset:0;background:url("../img/cover-overlay.svg") right center/cover;opacity:.18;pointer-events:none}
+.profile-about-card .profile-about-head::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--lime,#c8f56a),rgba(200,245,106,0))}
+.profile-about-card .profile-about-head>*{position:relative;z-index:1}
+.profile-about-card .profile-about-head>span{width:42px;height:42px;border-radius:13px;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 8px 18px -10px rgba(0,0,0,.6);backdrop-filter:blur(6px)}
+.profile-about-card .profile-about-head h3{color:#fff;font-size:18px;letter-spacing:-.01em}
+.profile-about-card .profile-about-head small{color:rgba(255,255,255,.75)}
+
+/* bio as a soft quote */
+.profile-about-card .profile-bio{position:relative;margin:18px 20px 0;padding:14px 16px 14px 18px;border-radius:14px;
+  background:color-mix(in srgb,var(--g500) 6%,transparent);border:1px solid color-mix(in srgb,var(--g500) 14%,transparent);border-left:3px solid var(--g500)}
+.profile-about-card .profile-bio::before{content:"\201C";position:absolute;right:12px;top:-6px;font:800 56px/1 Georgia,serif;color:var(--g500);opacity:.18;pointer-events:none}
+.profile-about-card .profile-bio.is-empty{border-left-color:var(--line)}
+
+/* connect */
+.profile-about-card .profile-connect-head{margin:20px 20px 10px;padding-top:0;border-top:0}
+.profile-about-card .profile-connect-head h4{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.profile-about-card .profile-connect-head h4::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--g500);box-shadow:0 0 0 4px color-mix(in srgb,var(--g500) 18%,transparent)}
+.profile-about-card .profile-connect-head span{padding:3px 9px;border-radius:99px;font-weight:700;color:var(--g700);background:color-mix(in srgb,var(--g500) 10%,transparent)}
+.profile-about-card .profile-links{gap:8px;padding:0 16px 18px}
+.profile-about-card .profile-link{position:relative;overflow:hidden;gap:12px;padding:10px 12px 10px 10px;border-radius:15px;
+  background:linear-gradient(100deg,color-mix(in srgb,var(--social) 9%,var(--card)) 0%,var(--card) 70%);border:1px solid color-mix(in srgb,var(--social) 18%,var(--line));
+  box-shadow:0 6px 14px -12px color-mix(in srgb,var(--social) 80%,transparent);transition:transform .18s var(--ease-out,ease),box-shadow .18s,border-color .18s,background-color .18s}
+.profile-about-card .profile-link::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:var(--social);opacity:0;transition:opacity .18s}
+.profile-about-card .profile-link-icon{width:38px;height:38px;border-radius:12px;color:#fff;
+  background:linear-gradient(140deg,color-mix(in srgb,var(--social) 80%,#fff) 0%,var(--social) 100%);box-shadow:0 6px 14px -6px color-mix(in srgb,var(--social) 70%,transparent),inset 0 1px 0 rgba(255,255,255,.3)}
+.profile-about-card .profile-link-copy b{color:var(--ink,#13261b)}
+.profile-about-card .profile-link-arrow{width:30px;height:30px;flex:none;border-radius:50%;opacity:1;color:var(--social);
+  background:color-mix(in srgb,var(--social) 10%,transparent);transition:background-color .18s,color .18s,transform .18s}
+.profile-about-card .profile-link:hover{transform:translateY(-2px);color:var(--ink2);border-color:color-mix(in srgb,var(--social) 45%,var(--line));
+  background:linear-gradient(100deg,color-mix(in srgb,var(--social) 15%,var(--card)) 0%,var(--card) 80%);box-shadow:0 12px 22px -14px color-mix(in srgb,var(--social) 85%,transparent)}
+.profile-about-card .profile-link:hover::before{opacity:1}
+.profile-about-card .profile-link:hover .profile-link-arrow{background:var(--social);color:#fff;transform:translateX(2px) rotate(-45deg)}
+.profile-about-card .profile-link:focus-visible{outline:2px solid var(--social);outline-offset:2px}
+.profile-about-card .profile-add-links{margin:18px 20px 20px;padding:12px 14px;border:1.5px dashed color-mix(in srgb,var(--g500) 40%,var(--line));border-radius:14px;justify-content:center;background:color-mix(in srgb,var(--g500) 5%,transparent)}
+.profile-about-card .profile-add-links:hover{border-style:solid;background:color-mix(in srgb,var(--g500) 10%,transparent)}
+
+/* dark theme: brighter brand colours for GitHub so it stays visible */
+:root[data-theme="dark"] .profile-about-card .profile-link-github{--social:#8b949e}
+:root[data-theme="dark"] .profile-about-card .profile-link-copy b{color:#e8f5ec}
+:root[data-theme="dark"] .profile-about-card .profile-connect-head span{color:var(--g300)}
+:root[data-theme="dark"] .profile-about-card .profile-link-arrow{color:color-mix(in srgb,var(--social) 55%,#fff);background:color-mix(in srgb,var(--social) 22%,transparent)}
+
+@media (prefers-reduced-motion:reduce){.profile-about-card .profile-link,.profile-about-card .profile-link-arrow{transition:none}.profile-about-card .profile-link:hover,.profile-about-card .profile-link:hover .profile-link-arrow{transform:none}}

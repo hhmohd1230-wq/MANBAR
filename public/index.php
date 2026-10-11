@@ -21,7 +21,7 @@ try {
     if (!file_exists(cfg('db')['driver'] === 'sqlite' ? cfg('db')['sqlite'] : __FILE__)) {
         throw new RuntimeException('Database not installed yet. Run: php database/install.php');
     }
-    if ($method === 'POST' && $path !== '/auth/google') verify_csrf();
+    if ($method === 'POST' && !in_array($path, ['/auth/google', '/stripe/webhook'], true)) verify_csrf();   // Google and Stripe post cross-site with their own checks
 
     foreach (require __DIR__ . '/../app/routes.php' as [$m, $pattern, $handler]) {
         if ($m !== $method) continue;

@@ -38,6 +38,12 @@ $config = [
         'from_name' => 'MANBAR',
     ],
 
+    // Card payments for paid courses (Stripe Checkout). Test keys start with sk_test_. Webhook secret (whsec_...) is optional.
+    'stripe' => [
+        'secret_key'     => $env('STRIPE_SECRET_KEY', ''),
+        'webhook_secret' => $env('STRIPE_WEBHOOK_SECRET', ''),
+    ],
+
     // Testing only: while email is not set up, show sign-in codes on screen (and in storage/mail.log).
     // Anyone could then sign in as anyone, so keep this false on a real server.
     'show_codes_on_screen' => $env('MANBAR_SHOW_CODES', '0') === '1',

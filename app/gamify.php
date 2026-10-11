@@ -257,6 +257,7 @@ function award_points(int $uid, int $pts, string $reason): void
 function notify(int $uid, string $type, string $text, ?string $link = null): void
 {
     if ($uid === (int) ($_SESSION['uid'] ?? 0) && $type !== 'welcome') return;   // don't notify yourself
+    if (function_exists('notif_allowed') && !notif_allowed($uid, $type)) return;   // turned off in Settings
     insert('notifications', ['user_id' => $uid, 'type' => $type, 'text' => mb_substr($text, 0, 250), 'link' => $link]);
 }
 

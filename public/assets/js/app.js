@@ -58,19 +58,27 @@
   setTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
   themeButton?.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
 
+  const sidebarButton = $('#sidebarCollapse');
+  const applySidebarState = collapsed => {
+    const compact = collapsed && innerWidth > 960;
+    root.classList.toggle('sidebar-pref-collapsed', compact);
+    sidebarButton?.setAttribute('aria-expanded', String(!compact));
+    if (sidebarButton) {
+      const label = compact ? 'Expand sidebar' : 'Collapse sidebar';
+      sidebarButton.setAttribute('aria-label', label);
+      sidebarButton.title = label;
+    }
+  };
   const setSidebarCollapsed = collapsed => {
-    root.classList.toggle('sidebar-pref-collapsed', collapsed && innerWidth > 960);
-    $('#sidebarCollapse')?.setAttribute('aria-expanded', String(!collapsed));
-    $('#sidebarRestore')?.setAttribute('aria-expanded', String(!collapsed));
+    applySidebarState(collapsed);
     try { localStorage.setItem('manbar.sidebar', collapsed ? 'collapsed' : 'open'); } catch (_) { /* storage may be unavailable */ }
   };
-  $('#sidebarCollapse')?.addEventListener('click', () => setSidebarCollapsed(true));
-  $('#sidebarRestore')?.addEventListener('click', () => setSidebarCollapsed(false));
+  sidebarButton?.addEventListener('click', () => setSidebarCollapsed(!root.classList.contains('sidebar-pref-collapsed')));
+  applySidebarState(root.classList.contains('sidebar-pref-collapsed'));
   addEventListener('resize', () => {
-    if (innerWidth <= 960) root.classList.remove('sidebar-pref-collapsed');
-    else {
-      try { root.classList.toggle('sidebar-pref-collapsed', localStorage.getItem('manbar.sidebar') === 'collapsed'); } catch (_) { /* no-op */ }
-    }
+    let collapsed = false;
+    try { collapsed = localStorage.getItem('manbar.sidebar') === 'collapsed'; } catch (_) { /* no-op */ }
+    applySidebarState(collapsed);
   });
 
   const hero = $('[data-hero-rotator]');
@@ -196,7 +204,7 @@
     if (rp) {
       $$('.dropdown.open').forEach(d => d.classList.remove('open'));
       const m = modal(`<h3>Report this ${esc(rp.dataset.report)}</h3><p class="muted small">Tell the moderators what is wrong. Reports are confidential.</p>
-        <select class="select" id="repReason"><option>Spam or advertising</option><option>Harassment or hate</option><option>Inappropriate content</option><option>Misinformation</option><option>Cheating / academic dishonesty</option><option>Something else</option></select>
+        <select class="select" id="repReason"><option>Spam or advertising</option><option>Scam or fraud</option><option>Harassment or hate</option><option>Inappropriate content</option><option>Misinformation</option><option>Cheating / academic dishonesty</option><option>Something else</option></select>
         <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-danger" id="repGo">${icon('flag', 16)} Report</button></div>`);
       $('#repGo', m).onclick = async () => { try { const r = await api('/api/report', { type: rp.dataset.report, id: rp.dataset.id, reason: $('#repReason', m).value }); toast(r.message); m.remove(); } catch (err) { toast(err.message, 'error'); } };
     }

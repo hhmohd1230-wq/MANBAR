@@ -5,6 +5,7 @@ $pt = post_type($p['type']);
 $mine = (int) $p['user_id'] === (int) $u['id'];
 $long = !$detail && mb_strlen($p['body']) > 380;
 ?>
+<?php if (empty($GLOBALS['feed_css_loaded'])): $GLOBALS['feed_css_loaded'] = true; ?><link rel="stylesheet" href="<?= e(asset('css/feed.css')) ?>"><?php endif ?>
 <article class="card post tone-<?= e($pt['tone']) ?>" id="post-<?= (int) $p['id'] ?>" data-post="<?= (int) $p['id'] ?>">
   <div class="post-head">
     <a href="<?= e(url('profile/' . $p['user_id'])) ?>"><?= avatar($p, 46) ?></a>

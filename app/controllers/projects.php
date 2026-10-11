@@ -11,6 +11,34 @@ function ensure_project_cover_schema(): void
     if (!in_array('cover_theme', $cols, true)) qexec('ALTER TABLE projects ADD COLUMN cover_theme INT NULL DEFAULT NULL');
 }
 
+/** Open roles, a milestone roadmap and shared files for each project (created on first use). */
+function ensure_project_extra_schema(): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    ensure_project_cover_schema();
+    ensure_learning_schema();   // table_columns()
+    $sqlite = db_driver() === 'sqlite';
+    $pk = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT AUTO_INCREMENT PRIMARY KEY';
+    $t = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
+    qexec("CREATE TABLE IF NOT EXISTS project_roles (id $pk, project_id INT NOT NULL, title VARCHAR(80) NOT NULL, skills VARCHAR(200) NULL, slots INT NOT NULL DEFAULT 1, created_at DATETIME NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE)$t");
+    qexec("CREATE TABLE IF NOT EXISTS project_milestones (id $pk, project_id INT NOT NULL, title VARCHAR(160) NOT NULL, due_date DATE NULL, done INT NOT NULL DEFAULT 0, done_at DATETIME NULL, created_at DATETIME NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE)$t");
+    qexec("CREATE TABLE IF NOT EXISTS project_files (id $pk, project_id INT NOT NULL, user_id INT NOT NULL, kind VARCHAR(10) NOT NULL, title VARCHAR(200) NOT NULL, url VARCHAR(500) NULL,
+        file_path VARCHAR(255) NULL, file_name VARCHAR(255) NULL, mime VARCHAR(120) NULL, size INT NOT NULL DEFAULT 0, created_at DATETIME NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE)$t");
+    if (!in_array('role_id', table_columns('project_applications'), true)) qexec('ALTER TABLE project_applications ADD COLUMN role_id INT NULL');
+    if (!in_array('role_id', table_columns('project_members'), true)) qexec('ALTER TABLE project_members ADD COLUMN role_id INT NULL');
+}
+/** A user's skills (lower-case) for matching against what projects need. */
+function user_skill_set(int $uid): array
+{
+    return array_map('mb_strtolower', array_column(qall("SELECT name FROM user_skills WHERE user_id = ? AND kind = 'skill'", [$uid]), 'name'));
+}
+function project_can_manage(array $p, array $u): bool { return (int) $p['owner_id'] === (int) $u['id']; }
+
 function project_cover_theme(array $project): int
 {
     if (isset($project['cover_theme'])) return max(0, min(count(PROJECT_COVER_THEMES) - 1, (int) $project['cover_theme']));
@@ -27,7 +55,7 @@ function project_cover_style(array $project): string
 
 function delete_project_cover_file(?string $path): void
 {
-    if (!$path || !preg_match('#^uploads/projects/[a-f0-9]{24}\.(?:jpg|png|webp|gif)$#i', $path)) return;
+    if (!$path || !preg_match('#^uploads/projects/[a-f0-9]{20,24}\.(?:jpg|png|webp|gif)$#i', $path)) return;
     $file = __DIR__ . '/../../public/' . str_replace('/', DIRECTORY_SEPARATOR, $path);
     if (is_file($file)) @unlink($file);
 }
@@ -35,7 +63,7 @@ function delete_project_cover_file(?string $path): void
 function page_projects(): void
 {
     $u = require_login();
-    ensure_project_cover_schema();
+    ensure_project_extra_schema();
     ensure_reputation_schema();
     $status = input('status');
     $skill = input('skill');
@@ -50,12 +78,37 @@ function page_projects(): void
     $projects = qall('SELECT p.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score,
         (SELECT COUNT(*) FROM project_members m WHERE m.project_id = p.id) AS members,
         (SELECT COUNT(*) FROM project_tasks t WHERE t.project_id = p.id) AS tasks,
-        (SELECT COUNT(*) FROM project_tasks t WHERE t.project_id = p.id AND t.status = \'done\') AS tasks_done
-        FROM projects p JOIN users u ON u.id = p.owner_id WHERE ' . implode(' AND ', $where) . ' ORDER BY p.id DESC LIMIT 60', $params);
+        (SELECT COUNT(*) FROM project_tasks t WHERE t.project_id = p.id AND t.status = \'done\') AS tasks_done,
+        (SELECT COUNT(*) FROM project_milestones ms WHERE ms.project_id = p.id) AS milestones,
+        (SELECT COUNT(*) FROM project_milestones ms WHERE ms.project_id = p.id AND ms.done = 1) AS milestones_done,
+        (SELECT COALESCE(SUM(r.slots), 0) FROM project_roles r WHERE r.project_id = p.id) AS role_slots,
+        (SELECT COUNT(*) FROM project_files f WHERE f.project_id = p.id) AS files,
+        GREATEST(p.created_at, COALESCE((SELECT MAX(m.created_at) FROM project_messages m WHERE m.project_id = p.id), p.created_at), COALESCE((SELECT MAX(t.created_at) FROM project_tasks t WHERE t.project_id = p.id), p.created_at)) AS active_at
+        FROM projects p JOIN users u ON u.id = p.owner_id WHERE ' . implode(' AND ', $where) . ' ORDER BY ' . (input('sort') === 'active' ? 'active_at DESC' : 'p.id DESC') . ' LIMIT 60', $params);
+    // faces of the team on each card
+    $faces = [];
+    if ($projects) foreach (qall('SELECT m.project_id, u.id, u.full_name, u.avatar_url, u.email FROM project_members m JOIN users u ON u.id = m.user_id WHERE m.project_id IN (' . implode(',', array_map('intval', array_column($projects, 'id'))) . ') ORDER BY m.joined_at') as $f) $faces[(int) $f['project_id']][] = $f;
+    // projects that need what I can do
+    $mySkills = user_skill_set((int) $u['id']);
+    $matches = [];
+    if ($mySkills) foreach (qall("SELECT p.*, u.full_name, u.avatar_url, u.email, (SELECT COUNT(*) FROM project_members m WHERE m.project_id = p.id) AS members FROM projects p JOIN users u ON u.id = p.owner_id
+        WHERE p.hidden = 0 AND p.status = 'open' AND p.owner_id <> ? AND NOT EXISTS (SELECT 1 FROM project_members m WHERE m.project_id = p.id AND m.user_id = ?)", [$u['id'], $u['id']]) as $mp) {
+        $need = array_merge(csv_list($mp['needed_skills']), ...array_map(fn($r) => csv_list($r['skills']), qall('SELECT skills FROM project_roles WHERE project_id = ?', [$mp['id']])));
+        $hit = array_values(array_unique(array_filter($need, fn($n) => in_array(mb_strtolower(trim($n)), $mySkills, true))));
+        if ($hit && (int) $mp['members'] < (int) $mp['max_members']) $matches[] = $mp + ['hit' => $hit];
+    }
+    usort($matches, fn($a, $b) => count($b['hit']) <=> count($a['hit']));
+    $matches = array_slice($matches, 0, 3);
+    $stats = qrow("SELECT (SELECT COUNT(*) FROM projects WHERE hidden = 0 AND status = 'open') AS open,
+        (SELECT COUNT(DISTINCT m.user_id) FROM project_members m JOIN projects p ON p.id = m.project_id WHERE p.hidden = 0) AS builders,
+        (SELECT COUNT(*) FROM project_tasks t JOIN projects p ON p.id = t.project_id WHERE p.hidden = 0 AND t.status = 'done') AS tasks_done,
+        (SELECT COUNT(*) FROM projects WHERE hidden = 0 AND status = 'completed') AS completed");
+    $counts = array_column(qall('SELECT status, COUNT(*) AS n FROM projects WHERE hidden = 0 GROUP BY status'), 'n', 'status');
     $skills = [];
     foreach (qall("SELECT needed_skills FROM projects WHERE hidden = 0 AND needed_skills <> ''") as $r) foreach (csv_list($r['needed_skills']) as $s) $skills[$s] = ($skills[$s] ?? 0) + 1;
     arsort($skills);
-    render('projects', ['u' => $u, 'projects' => $projects, 'status' => $status, 'skill' => $skill, 'q' => $q, 'mine' => $mine, 'skills' => array_slice(array_keys($skills), 0, 10)]);
+    render('projects', ['u' => $u, 'projects' => $projects, 'status' => $status, 'skill' => $skill, 'q' => $q, 'mine' => $mine, 'skills' => array_slice(array_keys($skills), 0, 10),
+        'faces' => $faces, 'matches' => $matches, 'mySkills' => $mySkills, 'stats' => $stats, 'counts' => $counts, 'sort' => input('sort')]);
 }
 
 function page_project_new(): void
@@ -95,7 +148,7 @@ function project_create(): void
 
 function load_project(int $id): array
 {
-    ensure_project_cover_schema();
+    ensure_project_extra_schema();
     ensure_reputation_schema();
     return qrow('SELECT p.*, u.full_name AS owner_name, u.avatar_url AS owner_avatar, u.email AS owner_email, u.verified AS owner_verified, u.reputation_score AS owner_reputation_score FROM projects p JOIN users u ON u.id = p.owner_id WHERE p.id = ?', [$id]) ?? abort(404, 'Project not found.');
 }
@@ -109,14 +162,24 @@ function page_project(int $id): void
     $isOwner = (int) $p['owner_id'] === (int) $u['id'];
     $isMember = project_member($id, (int) $u['id']);
     $members = qall('SELECT m.*, u.full_name, u.avatar_url, u.email, u.verified, u.reputation_score, u.headline FROM project_members m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? ORDER BY m.joined_at', [$id]);
-    $apps = $isOwner ? qall("SELECT a.*, u.full_name, u.avatar_url, u.email, u.major, u.verified, u.reputation_score FROM project_applications a JOIN users u ON u.id = a.user_id WHERE a.project_id = ? AND a.status = 'pending' ORDER BY a.id", [$id]) : [];
+    $apps = $isOwner ? qall("SELECT a.*, u.full_name, u.avatar_url, u.email, u.major, u.verified, u.reputation_score, r.title AS role_title FROM project_applications a JOIN users u ON u.id = a.user_id LEFT JOIN project_roles r ON r.id = a.role_id WHERE a.project_id = ? AND a.status = 'pending' ORDER BY a.id", [$id]) : [];
     $myApp = qrow('SELECT * FROM project_applications WHERE project_id = ? AND user_id = ?', [$id, $u['id']]);
     $tasks = ($isMember || is_admin()) ? qall('SELECT t.*, u.full_name AS assignee FROM project_tasks t LEFT JOIN users u ON u.id = t.assignee_id WHERE t.project_id = ? ORDER BY t.id', [$id]) : [];
     $msgs = ($isMember || is_admin()) ? qall('SELECT m.*, u.full_name, u.avatar_url, u.email FROM project_messages m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? ORDER BY m.id DESC LIMIT 40', [$id]) : [];
     $updates = qall('SELECT m.*, u.full_name, u.avatar_url, u.email FROM project_messages m JOIN users u ON u.id = m.user_id WHERE m.project_id = ? AND m.is_update = 1 ORDER BY m.id DESC LIMIT 10', [$id]);
     $myVouches = [];
     if ($isMember && $p['status'] === 'completed') foreach (qall('SELECT * FROM project_vouches WHERE project_id = ? AND author_id = ?', [$id, $u['id']]) as $vouch) $myVouches[(int) $vouch['subject_id']] = $vouch;
-    render('project', compact('u', 'p', 'isOwner', 'isMember', 'members', 'apps', 'myApp', 'tasks', 'msgs', 'updates', 'myVouches'));
+    $roles = qall('SELECT r.*, (SELECT COUNT(*) FROM project_members m WHERE m.project_id = r.project_id AND m.role_id = r.id) AS filled FROM project_roles r WHERE r.project_id = ? ORDER BY r.id', [$id]);
+    $milestones = qall('SELECT * FROM project_milestones WHERE project_id = ? ORDER BY due_date IS NULL, due_date, id', [$id]);
+    $canSeeFiles = $isMember || is_admin() || $p['status'] === 'completed';   // the team's workspace; public proof of work once completed
+    $files = $canSeeFiles ? qall('SELECT f.*, u.full_name FROM project_files f JOIN users u ON u.id = f.user_id WHERE f.project_id = ? ORDER BY f.id DESC', [$id]) : [];
+    $fileCount = (int) qval('SELECT COUNT(*) FROM project_files WHERE project_id = ?', [$id]);
+    $mySkills = user_skill_set((int) $u['id']);
+    $doneTasks = count(array_filter($tasks, fn($t) => $t['status'] === 'done'));
+    $taskTotal = $tasks ? count($tasks) : (int) qval('SELECT COUNT(*) FROM project_tasks WHERE project_id = ?', [$id]);
+    if (!$tasks) $doneTasks = (int) qval("SELECT COUNT(*) FROM project_tasks WHERE project_id = ? AND status = 'done'", [$id]);
+    $lastActive = qval('SELECT MAX(created_at) FROM project_messages WHERE project_id = ?', [$id]) ?: $p['created_at'];
+    render('project', compact('u', 'p', 'isOwner', 'isMember', 'members', 'apps', 'myApp', 'tasks', 'msgs', 'updates', 'myVouches', 'roles', 'milestones', 'files', 'fileCount', 'canSeeFiles', 'mySkills', 'doneTasks', 'taskTotal', 'lastActive'));
 }
 
 function project_apply(int $id): void
@@ -126,7 +189,9 @@ function project_apply(int $id): void
     if ($p['status'] !== 'open') { flash('This project is not accepting applications.', 'error'); redirect("projects/$id"); }
     if (project_member($id, (int) $u['id']) || qval('SELECT COUNT(*) FROM project_applications WHERE project_id = ? AND user_id = ?', [$id, $u['id']])) { flash('You already applied or you are in the team.', 'error'); redirect("projects/$id"); }
     if ((int) qval('SELECT COUNT(*) FROM project_members WHERE project_id = ?', [$id]) >= (int) $p['max_members']) { flash('The team is full.', 'error'); redirect("projects/$id"); }
-    insert('project_applications', ['project_id' => $id, 'user_id' => $u['id'], 'message' => mb_substr(input('message'), 0, 1000)]);
+    $role = input_int('role_id') ? qrow('SELECT * FROM project_roles WHERE id = ? AND project_id = ?', [input_int('role_id'), $id]) : null;
+    if ($role && (int) qval('SELECT COUNT(*) FROM project_members WHERE project_id = ? AND role_id = ?', [$id, $role['id']]) >= (int) $role['slots']) { flash('That role is already filled. Pick another one.', 'error'); redirect("projects/$id#roles"); }
+    insert('project_applications', ['project_id' => $id, 'user_id' => $u['id'], 'message' => mb_substr(input('message'), 0, 1000), 'role_id' => $role['id'] ?? null]);
     notify((int) $p['owner_id'], 'application', $u['full_name'] . ' applied to “' . excerpt($p['title'], 50) . '”', "projects/$id");
     flash('Application sent! The project owner will review it.');
     redirect("projects/$id");
@@ -141,7 +206,8 @@ function project_decide(int $id, int $appId): void
     if (input('decision') === 'accept') {
         if ((int) qval('SELECT COUNT(*) FROM project_members WHERE project_id = ?', [$id]) >= (int) $p['max_members']) { flash('Team is full — raise the team size first.', 'error'); redirect("projects/$id"); }
         update('project_applications', ['status' => 'accepted'], 'id = ?', [$appId]);
-        insert('project_members', ['project_id' => $id, 'user_id' => $a['user_id'], 'role' => 'Member', 'joined_at' => now()]);
+        $role = $a['role_id'] ? qrow('SELECT * FROM project_roles WHERE id = ?', [$a['role_id']]) : null;
+        insert('project_members', ['project_id' => $id, 'user_id' => $a['user_id'], 'role' => $role['title'] ?? 'Member', 'role_id' => $role['id'] ?? null, 'joined_at' => now()]);
         notify((int) $a['user_id'], 'accepted', 'You were accepted into “' . excerpt($p['title'], 50) . '” 🎉', "projects/$id");
         award_points((int) $a['user_id'], 10, 'Joined a project team');
         flash('Applicant added to the team.');
@@ -256,8 +322,100 @@ function project_delete(int $id): void
     $u = require_login();
     $p = load_project($id);
     if ((int) $p['owner_id'] !== (int) $u['id'] && !is_admin()) abort(403);
+    foreach (qall("SELECT file_path FROM project_files WHERE project_id = ? AND kind = 'file'", [$id]) as $f) @unlink(dirname(__DIR__, 2) . '/storage/project_files/' . $f['file_path']);
+    @rmdir(dirname(__DIR__, 2) . "/storage/project_files/$id");
     qexec('DELETE FROM projects WHERE id = ?', [$id]);
     delete_project_cover_file($p['cover_image'] ?? null);
     flash('Project deleted.');
     redirect('projects');
+}
+
+/* ---------- open roles, milestones, files ---------- */
+
+function project_role_add(int $id): void
+{
+    $u = require_login();
+    $p = load_project($id);
+    if (!project_can_manage($p, $u)) abort(403);
+    if (input('delete')) { qexec('DELETE FROM project_roles WHERE id = ? AND project_id = ?', [input_int('delete'), $id]); qexec('UPDATE project_members SET role_id = NULL WHERE project_id = ? AND role_id = ?', [$id, input_int('delete')]); redirect("projects/$id#roles"); }
+    $title = mb_substr(input('title'), 0, 80);
+    if ($title === '') { flash('Give the role a name, e.g. UI designer.', 'error'); redirect("projects/$id#roles"); }
+    insert('project_roles', ['project_id' => $id, 'title' => $title, 'skills' => implode(',', array_slice(parse_skill_input(input('skills')), 0, 6)) ?: null, 'slots' => max(1, min(10, input_int('slots', 1)))]);
+    flash('Role added. People can now apply for it.');
+    redirect("projects/$id#roles");
+}
+
+function project_milestone(int $id): void
+{
+    $u = require_login();
+    $p = load_project($id);
+    $member = project_member($id, (int) $u['id']);
+    if (!$member) abort(403);
+    if ($mid = input_int('toggle')) {   // any team member can tick a milestone
+        $m = qrow('SELECT * FROM project_milestones WHERE id = ? AND project_id = ?', [$mid, $id]) ?? abort(404);
+        update('project_milestones', ['done' => $m['done'] ? 0 : 1, 'done_at' => $m['done'] ? null : now()], 'id = ?', [$mid]);
+        if (!$m['done']) insert('project_messages', ['project_id' => $id, 'user_id' => $u['id'], 'body' => '🏁 Milestone reached: ' . $m['title'], 'is_update' => 1]);
+        redirect("projects/$id#roadmap");
+    }
+    if (!project_can_manage($p, $u)) abort(403);
+    if ($mid = input_int('delete')) { qexec('DELETE FROM project_milestones WHERE id = ? AND project_id = ?', [$mid, $id]); redirect("projects/$id#roadmap"); }
+    $title = mb_substr(input('title'), 0, 160);
+    if ($title !== '') insert('project_milestones', ['project_id' => $id, 'title' => $title, 'due_date' => preg_match('/^\d{4}-\d{2}-\d{2}$/', input('due_date')) ? input('due_date') : null]);
+    redirect("projects/$id#roadmap");
+}
+
+function project_files_add(int $id): void
+{
+    $u = require_login();
+    load_project($id);
+    if (!project_member($id, (int) $u['id'])) abort(403);
+    $saved = 0; $skipped = [];
+    $F = $_FILES['files'] ?? null;
+    if ($F && is_array($F['name'])) foreach ($F['name'] as $i => $name) {
+        if ($name === '' || ($F['error'][$i] ?? 0) === UPLOAD_ERR_NO_FILE) continue;
+        try {
+            $f = store_course_file(['name' => $name, 'type' => $F['type'][$i], 'tmp_name' => $F['tmp_name'][$i], 'error' => $F['error'][$i], 'size' => $F['size'][$i]], $id, 'project_files');
+            insert('project_files', ['project_id' => $id, 'user_id' => $u['id'], 'kind' => 'file', 'title' => mb_substr(pathinfo($f['file_name'], PATHINFO_FILENAME), 0, 200)] + $f);
+            $saved++;
+        } catch (Throwable $ex) { $skipped[] = basename((string) $name); }
+    }
+    foreach (preg_split('/\R/', (string) ($_POST['links'] ?? '')) as $line) {
+        $line = trim($line);
+        [$title, $link] = str_contains($line, '|') ? array_map('trim', explode('|', $line, 2)) : ['', $line];
+        if (!preg_match('#^https?://[^\s]+$#i', $link)) continue;
+        insert('project_files', ['project_id' => $id, 'user_id' => $u['id'], 'kind' => 'link', 'title' => mb_substr($title ?: link_host($link), 0, 200), 'url' => mb_substr($link, 0, 500)]);
+        $saved++;
+    }
+    flash($skipped ? $saved . ' added. Skipped (type or size not allowed): ' . implode(', ', array_slice($skipped, 0, 5)) : ($saved ? 'Shared with your team.' : 'Choose files or paste links.'), $skipped || !$saved ? 'error' : 'success');
+    redirect("projects/$id#files");
+}
+
+function project_file_delete(int $id, int $fid): void
+{
+    $u = require_login();
+    $p = load_project($id);
+    $f = qrow('SELECT * FROM project_files WHERE id = ? AND project_id = ?', [$fid, $id]) ?? abort(404);
+    if ((int) $f['user_id'] !== (int) $u['id'] && !project_can_manage($p, $u)) abort(403);
+    if ($f['file_path']) @unlink(dirname(__DIR__, 2) . '/storage/project_files/' . $f['file_path']);
+    qexec('DELETE FROM project_files WHERE id = ?', [$fid]);
+    redirect("projects/$id#files");
+}
+
+/** Team files: members only while the project runs; every signed-in member once it's completed (proof of work). */
+function project_file(int $id, int $fid): void
+{
+    $u = require_login();
+    $p = load_project($id);
+    if (!project_member($id, (int) $u['id']) && !is_admin() && $p['status'] !== 'completed') abort(403, 'Only the team can open project files.');
+    $f = qrow("SELECT * FROM project_files WHERE id = ? AND project_id = ? AND kind = 'file'", [$fid, $id]) ?? abort(404);
+    $path = dirname(__DIR__, 2) . '/storage/project_files/' . $f['file_path'];
+    if (!is_file($path)) abort(404, 'This file is missing.');
+    $inline = in_array($f['mime'], ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'text/plain'], true) && input('download') !== '1';
+    header('Content-Type: ' . $f['mime']);
+    header('Content-Length: ' . filesize($path));
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: private, max-age=3600');
+    header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . "; filename*=UTF-8''" . rawurlencode($f['file_name']));
+    readfile($path);
+    exit;
 }

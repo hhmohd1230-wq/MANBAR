@@ -7,27 +7,30 @@ $title = $title ?? 'Admin';
 <head>
 <?php partial('head') ?>
 <title><?= e($title) ?> · MANBAR Admin</title>
+<link rel="stylesheet" href="<?= e(asset('css/sidebar.css')) ?>">
+<link rel="stylesheet" href="<?= e(asset('css/admin.css')) ?>">
 </head>
 <body class="admin">
 <div class="shell">
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="<?= e(url('admin')) ?>"><img src="<?= e(asset('img/logo.svg')) ?>" alt=""><span>MAN<b>BAR</b><small>Admin console</small></span></a>
+    <a class="brand" href="<?= e(url('admin')) ?>" aria-label="MANBAR admin"><img src="<?= e(asset('img/logo.svg')) ?>" alt=""><span class="brand-copy">MAN<b>BAR</b><small>Admin console</small></span></a>
     <nav class="nav">
       <div class="nav-label">Overview</div>
-      <a class="<?= req_path() === '/admin' ? 'on' : '' ?>" href="<?= e(url('admin')) ?>"><?= icon('dashboard') ?> Dashboard</a>
+      <a class="<?= req_path() === '/admin' ? 'on' : '' ?>" href="<?= e(url('admin')) ?>" title="Dashboard" aria-label="Dashboard"><?= icon('dashboard') ?><span class="nav-text">Dashboard</span></a>
       <div class="nav-label">People</div>
-      <a class="<?= trim(nav_on('/admin/users')) ?>" href="<?= e(url('admin/users')) ?>"><?= icon('users') ?> Users</a>
-      <a class="<?= trim(nav_on('/admin/roster')) ?>" href="<?= e(url('admin/roster')) ?>"><?= icon('database') ?> Student roster</a>
+      <a class="<?= trim(nav_on('/admin/users')) ?>" href="<?= e(url('admin/users')) ?>" title="Users" aria-label="Users"><?= icon('users') ?><span class="nav-text">Users</span></a>
+      <a class="<?= trim(nav_on('/admin/roster')) ?>" href="<?= e(url('admin/roster')) ?>" title="Student roster" aria-label="Student roster"><?= icon('database') ?><span class="nav-text">Student roster</span></a>
       <div class="nav-label">Content</div>
-      <a class="<?= trim(nav_on('/admin/moderation')) ?>" href="<?= e(url('admin/moderation')) ?>"><?= icon('flag') ?> Moderation <?php if ($openReports): ?><span class="count"><?= $openReports ?></span><?php endif ?></a>
-      <a class="<?= trim(nav_on('/admin/content')) ?>" href="<?= e(url('admin/content')) ?>"><?= icon('layers') ?> Projects, services, courses</a>
+      <a class="<?= trim(nav_on('/admin/moderation')) ?>" href="<?= e(url('admin/moderation')) ?>" title="Moderation" aria-label="Moderation<?= $openReports ? ' — ' . $openReports . ' open' : '' ?>"><?= icon('flag') ?><span class="nav-text">Moderation</span><?php if ($openReports): ?><span class="count"><?= $openReports ?></span><?php endif ?></a>
+      <a class="<?= trim(nav_on('/admin/content')) ?>" href="<?= e(url('admin/content')) ?>" title="Projects, services, courses" aria-label="Projects, services, courses"><?= icon('layers') ?><span class="nav-text">Projects, services, courses</span></a>
       <div class="nav-label">Platform</div>
-      <a class="<?= trim(nav_on('/admin/universities')) ?>" href="<?= e(url('admin/universities')) ?>"><?= icon('building') ?> Universities</a>
-      <a class="<?= trim(nav_on('/admin/settings')) ?>" href="<?= e(url('admin/settings')) ?>"><?= icon('settings') ?> Settings &amp; audit</a>
+      <a class="<?= trim(nav_on('/admin/universities')) ?>" href="<?= e(url('admin/universities')) ?>" title="Universities" aria-label="Universities"><?= icon('building') ?><span class="nav-text">Universities</span></a>
+      <a class="<?= trim(nav_on('/admin/settings')) ?>" href="<?= e(url('admin/settings')) ?>" title="Settings &amp; audit" aria-label="Settings and audit"><?= icon('settings') ?><span class="nav-text">Settings &amp; audit</span></a>
       <div class="nav-label">Back</div>
-      <a href="<?= e(url('feed')) ?>"><?= icon('arrow-right') ?> Open the community</a>
+      <a href="<?= e(url('feed')) ?>" title="Open the community" aria-label="Open the community"><?= icon('arrow-right') ?><span class="nav-text">Open the community</span></a>
     </nav>
   </aside>
+  <button class="icon-btn sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><span class="sidebar-collapse-hide"><?= icon('panel-left-close', 19) ?></span><span class="sidebar-collapse-show"><?= icon('panel-left-open', 19) ?></span></button>
   <div class="main">
     <header class="topbar">
       <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu"><?= icon('menu', 22) ?></button>
@@ -48,5 +51,6 @@ $title = $title ?? 'Admin';
 </div>
 <?php partial('toasts') ?>
 <script src="<?= e(asset('js/app.js')) ?>" defer></script>
+<script src="<?= e(asset('js/admin.js')) ?>" defer></script>
 </body>
 </html>

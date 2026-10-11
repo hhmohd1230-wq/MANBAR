@@ -11,6 +11,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mail.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/gamify.php';
+require_once __DIR__ . '/learning.php';
 require_once __DIR__ . '/ai.php';
 require_once __DIR__ . '/catalog.php';
 foreach (glob(__DIR__ . '/controllers/*.php') as $f) require $f;

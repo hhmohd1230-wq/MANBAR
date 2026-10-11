@@ -4,6 +4,7 @@ $qs = fn(array $o) => url('feed?' . http_build_query(array_filter(array_merge(['
 $firstName = explode(' ', trim($u['full_name']))[0];
 ?>
 <div class="home-page">
+  <link rel="stylesheet" href="<?= e(asset('css/feed.css')) ?>"><?php $GLOBALS['feed_css_loaded'] = true; ?><script src="<?= e(asset('js/feed.js')) ?>" defer></script>
   <?php if ($isHome): ?>
   <section class="home-hero" aria-labelledby="welcomeTitle" data-hero-rotator>
     <div class="home-hero-backgrounds" aria-hidden="true">
@@ -20,12 +21,19 @@ $firstName = explode(' ', trim($u['full_name']))[0];
         <a class="home-text-link" href="<?= e(url('feed?compose=idea')) ?>">Share an idea <?= icon('arrow-right', 15) ?></a>
       </div>
     </div>
-    <div class="home-hero-note" aria-label="Your MANBAR progress">
-      <span class="hero-note-label">Your progress</span>
-      <strong><?= (int) $u['points'] ?></strong>
-      <span>points earned</span>
-      <a href="<?= e(url('achievements')) ?>">View achievements <?= icon('arrow-right', 14) ?></a>
-    </div>
+    <?php $rank = level_for((int) ($u['reputation_score'] ?? 0)); $rk = rank_key((int) $rank['n']); $rep = (int) ($u['reputation_score'] ?? 0); ?>
+    <a class="home-hero-note hp-card rank-theme-<?= e($rk) ?>" href="<?= e(url('achievements')) ?>" aria-label="Your progress: <?= e($rank['name']) ?> rank, <?= (int) $u['points'] ?> points. View achievements">
+      <span class="hp-top"><span class="hero-note-label">Your progress</span><span class="hp-rankno">Rank <?= (int) $rank['n'] ?></span></span>
+      <span class="hp-mid">
+        <span class="hp-ring" style="--p:<?= (int) $rank['pct'] ?>"><span class="rank-emblem rank-<?= e($rk) ?> hp-emblem" aria-hidden="true"></span></span>
+        <span class="hp-rank"><b><?= e($rank['name']) ?></b><?= rank_stars_html($rank, 'rank-stars hp-stars') ?></span>
+      </span>
+      <span class="hp-points"><strong><?= number_format((int) $u['points']) ?></strong><span>points earned</span></span>
+      <span class="hp-bar" aria-hidden="true"><i style="width:<?= (int) $rank['pct'] ?>%"></i></span>
+      <span class="hp-next"><?= $rank['next'] ? '<b>' . max(0, (int) $rank['next_at'] - $rep) . ' XP</b> to ' . e($rank['next']) : 'Top rank reached 🎉' ?></span>
+      <span class="hp-mini"><span><?= icon('award', 13) ?> <?= (int) $prog['badges'] ?> badge<?= (int) $prog['badges'] === 1 ? '' : 's' ?></span><span><?= icon('chat', 13) ?> <?= (int) $prog['posts'] ?> post<?= (int) $prog['posts'] === 1 ? '' : 's' ?></span></span>
+      <span class="hp-go">View achievements <?= icon('arrow-right', 14) ?></span>
+    </a>
     <div class="home-hero-dots" aria-label="Choose welcome background">
       <button class="is-active" type="button" data-hero-slide="0" aria-label="Show library background" aria-current="true"></button>
       <button type="button" data-hero-slide="1" aria-label="Show collaboration background"></button>
@@ -83,9 +91,27 @@ $firstName = explode(' ', trim($u['full_name']))[0];
   <?php endif ?>
 
   <section class="community-section" aria-labelledby="feedTitle">
-    <div class="section-heading section-heading-inline" data-tour="feed">
-      <div><span class="section-kicker"><?= $isHome ? 'Community feed' : 'Browse posts' ?></span><h2 id="feedTitle"><?= $isHome ? 'Ideas from around MANBAR' : 'Community feed' ?></h2></div>
-      <?php if (!$isHome): ?><a class="section-link" href="<?= e(url('feed')) ?>"><?= icon('arrow-left', 15) ?> Back to home</a><?php endif ?>
+    <div class="fd-board" data-tour="feed" style="--fd-bg:url('<?= e(asset('img/home-campus-collaboration-v1.png')) ?>')">
+      <div class="fd-board-text">
+        <span class="fd-kicker"><?= icon('chat', 15) ?> <?= $isHome ? 'Community feed' : 'Browse posts' ?></span>
+        <h2 id="feedTitle"><?= $isHome ? 'Ideas from around MANBAR' : 'Community feed' ?></h2>
+        <p>Share what you’re building, ask for help, find teammates and see what’s happening on campus.</p>
+        <div class="fd-quick">
+          <?php foreach (['idea' => 'Share an idea', 'question' => 'Ask a question', 'team' => 'Find teammates', 'resource' => 'Share a resource', 'achievement' => 'Show your work'] as $k => $l): $pt = post_type($k); ?>
+            <a class="fd-qbtn tone-<?= e($pt['tone']) ?>" href="<?= e(url('feed?compose=' . $k)) ?>"><span><?= icon($pt['icon'], 15) ?></span><?= e($l) ?></a>
+          <?php endforeach ?>
+        </div>
+        <?php if (!$isHome): ?><a class="fd-back" href="<?= e(url('feed')) ?>"><?= icon('arrow-left', 15) ?> Back to home</a><?php endif ?>
+      </div>
+      <div class="fd-side">
+        <dl class="fd-stats">
+          <div><dt><?= icon('chat', 13) ?> Posts this month</dt><dd><?= (int) $fstats['posts'] ?></dd></div>
+          <div><dt><?= icon('users', 13) ?> People posting</dt><dd><?= (int) $fstats['posters'] ?></dd></div>
+          <div><dt><?= icon('message', 13) ?> Comments this month</dt><dd><?= (int) $fstats['comments'] ?></dd></div>
+          <div><dt><?= icon('layers', 13) ?> All posts</dt><dd><?= (int) $fstats['total'] ?></dd></div>
+        </dl>
+        <?php if ($trending): ?><div class="fd-trend"><span><?= icon('fire', 14) ?> Trending</span><?php foreach ($trending as $tg): ?><a href="<?= e(url('feed?tag=' . urlencode($tg))) ?>"><i>#</i><?= e($tg) ?></a><?php endforeach ?></div><?php endif ?>
+      </div>
     </div>
 
     <div data-tour="composer"><?php partial('composer', ['u' => $u, 'compose' => $compose]) ?></div>

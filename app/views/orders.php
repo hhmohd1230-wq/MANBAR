@@ -1,5 +1,18 @@
 <?php $title = 'My orders'; ?>
-<div class="pagehead"><div><h1>My orders &amp; services</h1><p>Track what you’ve requested and what others asked from you.</p></div><a class="btn btn-primary" href="<?= e(url('marketplace/new')) ?>"><?= icon('plus', 17) ?> Offer a service</a></div>
+<div class="pagehead"><div><h1>My orders &amp; services</h1><p>Track what you’ve requested and what others asked from you.</p></div><div class="row wrap"><a class="btn" href="<?= e(url('marketplace/earnings')) ?>"><?= icon('wallet', 17) ?> Wallet · AED <?= number_format($wallet['available']) ?><?= $wallet['held'] ? ' <span class="xs muted">(+' . number_format($wallet['held']) . ' on hold)</span>' : '' ?></a><a class="btn btn-primary" href="<?= e(url('marketplace/new')) ?>"><?= icon('plus', 17) ?> Offer a service</a></div></div>
+<?php partial('market_assets') ?>
+<?php if ($mine): ?>
+<section class="card mk-mytrust">
+  <span class="mk-score is-lg" style="--p:<?= (int) $trust['score'] ?>"><b><?= (int) $trust['score'] ?></b></span>
+  <div class="grow"><b class="mk-mytrust-label"><?= e($trust['label']) ?></b><span class="small muted">Your trust score as a provider. It grows with delivered orders, on-time delivery, quick replies, good reviews and teammate vouches.</span></div>
+  <dl class="mk-tstats is-row">
+    <div><dt>Delivered</dt><dd><?= (int) $trust['done'] ?></dd></div>
+    <div><dt>On time</dt><dd><?= $trust['on_time'] !== null ? (int) $trust['on_time'] . '%' : '—' ?></dd></div>
+    <div><dt>Rating</dt><dd><?= $trust['reviews'] ? number_format($trust['rating'], 1) . ' ★' : '—' ?></dd></div>
+    <div><dt>Responds</dt><dd class="sm"><?= e(response_label($trust['response_h'])) ?></dd></div>
+  </dl>
+</section>
+<?php endif ?>
 <div class="stack gap-l">
   <section><h3>Requests I received <span class="chip sm"><?= count($sold) ?></span></h3>
     <div class="table-wrap"><table class="t"><thead><tr><th>Buyer</th><th>Service</th><th>Status</th><th>When</th><th></th></tr></thead><tbody>

@@ -55,7 +55,7 @@ function qexec(string $sql, array $p = []): int
 }
 
 /** Tables that have no created_at column (so we must not stamp them). */
-const NO_STAMP_TABLES = ['settings', 'lessons', 'user_skills', 'badges', 'project_members'];
+const NO_STAMP_TABLES = ['settings', 'lessons', 'user_skills', 'badges', 'project_members', 'quiz_questions', 'quiz_answers', 'live_players', 'live_answers'];
 
 function insert(string $table, array $data): int
 {

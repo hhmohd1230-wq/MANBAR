@@ -6,33 +6,132 @@ foreach ($tasks as $t) $byStatus[$t['status']][] = $t;
 $pct = $tasks ? round(count($byStatus['done']) / count($tasks) * 100) : 0;
 $full = count($members) >= (int) $p['max_members'];
 ?>
+<?php
+$pid = (int) $p['id'];
+$left = max(0, (int) $p['max_members'] - count($members));
+$progress = $taskTotal ? (int) round($doneTasks / $taskTotal * 100) : null;
+$msDone = count(array_filter($milestones, fn($m) => (int) $m['done'] === 1));
+$isMatch = fn(string $sk) => in_array(mb_strtolower(trim($sk)), $mySkills, true);
+$openRoles = array_values(array_filter($roles, fn($r) => (int) $r['filled'] < (int) $r['slots']));
+$canApply = !$isMember && $p['status'] === 'open' && !$myApp && !$full;
+?>
+<?php partial('project_assets') ?>
+<?php partial('back_button', ['href' => 'projects', 'label' => 'Back to projects']) ?>
 <div class="page-grid">
   <div class="stack gap-l">
-    <div class="card" style="padding:0;overflow:hidden">
-      <div class="item-cover project-cover project-detail-cover project-cover-t<?= project_cover_theme($p) ?> <?= !empty($p['cover_image']) ? 'has-image' : '' ?>" style="<?= e(project_cover_style($p)) ?>"><span class="status-pill st-<?= e($p['status']) ?>"><?= e(str_replace('_', ' ', $p['status'])) ?></span><span class="ic-big"><?= icon('rocket', 34) ?></span></div>
-      <div style="padding:22px 26px 26px">
-        <h1 style="margin-bottom:6px"><?= e($p['title']) ?></h1>
-        <div class="row small muted"><a class="row gap-s" href="<?= e(url('profile/' . $p['owner_id'])) ?>" style="color:var(--ink2)"><?= avatar(['full_name' => $p['owner_name'], 'avatar_url' => $p['owner_avatar'], 'email' => $p['owner_email']], 28) ?> <b><?= e($p['owner_name']) ?></b></a><span>· started <?= e(time_ago($p['created_at'])) ?></span></div>
-        <div class="prose" style="margin-top:14px;font-size:15.5px"><?= rich($p['description']) ?></div>
-        <?php if ($p['needed_skills']): ?><div class="row wrap" style="margin-top:14px"><span class="small muted">Looking for:</span><?php foreach (csv_list($p['needed_skills']) as $s): ?><a class="chip" href="<?= e(url('people?skill=' . urlencode($s))) ?>"><?= e($s) ?></a><?php endforeach ?></div><?php endif ?>
-        <?php if ($p['outcome']): ?><div class="card flat mt" style="background:var(--g50)"><b><?= icon('trophy', 16) ?> Project outcome</b><p style="margin:6px 0 0"><?= rich($p['outcome']) ?></p></div><?php endif ?>
-        <div class="row wrap" style="margin-top:20px">
-          <?php if (!$isMember && $p['status'] === 'open'): ?>
-            <?php if ($myApp): ?><span class="chip st-<?= e($myApp['status']) ?>">Your application: <?= e($myApp['status']) ?></span>
-            <?php elseif ($full): ?><span class="chip">Team is full</span>
-            <?php else: ?><button class="btn btn-primary" onclick="document.getElementById('applyBox').hidden=false;this.hidden=true"><?= icon('user-plus', 17) ?> Apply to join</button><?php endif ?>
-          <?php endif ?>
-          <?php if ($isMember && !$isOwner): ?><form method="post" action="<?= e(url('projects/' . $p['id'] . '/leave')) ?>" data-confirm="Leave this project?"><?= csrf_field() ?><button class="btn btn-ghost btn-sm">Leave project</button></form><?php endif ?>
-          <button class="btn btn-ghost btn-sm" data-copy="<?= e(url('projects/' . $p['id'])) ?>"><?= icon('link', 15) ?> Copy link</button>
-          <?php if (!$isOwner): ?><button class="btn btn-ghost btn-sm" data-report="project" data-id="<?= (int) $p['id'] ?>"><?= icon('flag', 15) ?> Report</button><?php endif ?>
+    <section class="card pj-head">
+      <div class="pj-banner project-cover project-cover-t<?= project_cover_theme($p) ?> <?= !empty($p['cover_image']) ? 'has-image' : '' ?>" style="<?= e(project_cover_style($p)) ?>">
+        <span class="status-pill st-<?= e($p['status']) ?>"><?= e(ucfirst(str_replace('_', ' ', $p['status']))) ?></span>
+        <?php if ($p['status'] === 'open' && $left): ?><span class="pj-spots"><?= icon('user-plus', 13) ?> <?= $left ?> spot<?= $left === 1 ? '' : 's' ?> open</span><?php endif ?>
+      </div>
+      <div class="pj-headbody">
+        <div class="pj-titlerow">
+          <div class="grow">
+            <h1><?= e($p['title']) ?></h1>
+            <div class="pj-owner"><a href="<?= e(url('profile/' . $p['owner_id'])) ?>"><?= avatar(['full_name' => $p['owner_name'], 'avatar_url' => $p['owner_avatar'], 'email' => $p['owner_email']], 28) ?> <b><?= e($p['owner_name']) ?></b></a><span>· started <?= e(time_ago($p['created_at'])) ?></span><span>· active <?= e(time_ago($lastActive)) ?></span></div>
+          </div>
+          <div class="pj-cta-row">
+            <?php if ($canApply): ?><a class="btn btn-primary btn-lg" href="#apply"><?= icon('user-plus', 17) ?> Apply to join</a>
+            <?php elseif ($myApp && !$isMember): ?><span class="chip st-<?= e($myApp['status']) ?>">Your application: <?= e($myApp['status']) ?></span>
+            <?php elseif ($isMember): ?><span class="chip on"><?= icon('check', 14) ?> <?= $isOwner ? 'Your project' : 'You’re in the team' ?></span>
+            <?php elseif ($full && $p['status'] === 'open'): ?><span class="chip">Team is full</span><?php endif ?>
+            <button class="btn btn-ghost btn-sm" data-copy="<?= e(url("projects/$pid")) ?>"><?= icon('link', 15) ?> Copy link</button>
+            <?php if ($isMember && !$isOwner): ?><form method="post" action="<?= e(url("projects/$pid/leave")) ?>" data-confirm="Leave this project?"><?= csrf_field() ?><button class="btn btn-ghost btn-sm">Leave</button></form><?php endif ?>
+            <?php if (!$isOwner): ?><button class="btn btn-ghost btn-sm" data-report="project" data-id="<?= $pid ?>" aria-label="Report"><?= icon('flag', 15) ?></button><?php endif ?>
+          </div>
         </div>
-        <form id="applyBox" hidden method="post" action="<?= e(url('projects/' . $p['id'] . '/apply')) ?>" class="mt" data-ai-writing-form data-ai-context="project application"><?= csrf_field() ?>
-          <label class="f">Tell the owner why you’re a great fit</label><textarea class="textarea" name="message" data-ai-writing="body" placeholder="Your skills, availability and what you’d like to contribute…"></textarea>
+        <dl class="pj-quick">
+          <div><dt><?= icon('users', 14) ?> Team</dt><dd><?= count($members) ?><small>/<?= (int) $p['max_members'] ?></small></dd></div>
+          <div><dt><?= icon('user-plus', 14) ?> Open spots</dt><dd><?= $p['status'] === 'open' ? $left : '—' ?></dd></div>
+          <div><dt><?= icon('check-circle', 14) ?> Tasks done</dt><dd><?= $progress !== null ? $progress . '%' : '—' ?><?php if ($taskTotal): ?><small> <?= $doneTasks ?>/<?= $taskTotal ?></small><?php endif ?></dd></div>
+          <div><dt><?= icon('flag', 14) ?> Milestones</dt><dd><?= $milestones ? $msDone . '<small>/' . count($milestones) . '</small>' : '—' ?></dd></div>
+          <div><dt><?= icon('paperclip', 14) ?> Files</dt><dd><?= (int) $fileCount ?></dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 class="lc-h2">About the project</h2>
+      <div class="prose pj-desc"><?= rich($p['description']) ?></div>
+      <?php if ($p['needed_skills']): ?><h3 class="pj-h3">Skills we need</h3><div class="pj-chips is-lg"><?php foreach (csv_list($p['needed_skills']) as $s): ?><a class="<?= $isMatch($s) ? 'is-match' : '' ?>" href="<?= e(url('people?skill=' . urlencode($s))) ?>"><?= $isMatch($s) ? icon('check', 12) . ' ' : '' ?><?= e($s) ?></a><?php endforeach ?></div>
+        <?php if (!$isMember && array_filter(csv_list($p['needed_skills']), $isMatch)): ?><p class="pj-youmatch mt"><?= icon('sparkles', 14) ?> You have <?= count(array_filter(csv_list($p['needed_skills']), $isMatch)) ?> of the skills this team needs.</p><?php endif ?><?php endif ?>
+      <?php if ($p['outcome']): ?><div class="pj-outcome"><b><?= icon('trophy', 16) ?> What we achieved</b><div><?= rich($p['outcome']) ?></div></div><?php endif ?>
+    </section>
+
+    <?php if ($roles || $isOwner || $canApply): ?>
+    <section class="card" id="roles">
+      <div class="card-title"><h2 class="lc-h2">Open roles</h2><span class="small muted"><?= count($openRoles) ?> open · apply for the one that fits you</span></div>
+      <?php if ($roles): ?><div class="pj-roles">
+        <?php foreach ($roles as $r): $full_r = (int) $r['filled'] >= (int) $r['slots']; ?>
+          <div class="pj-role<?= $full_r ? ' is-full' : '' ?>">
+            <div class="pj-role-top"><b><?= e($r['title']) ?></b><span class="pj-role-slots"><?php for ($i = 0; $i < (int) $r['slots']; $i++): ?><i class="<?= $i < (int) $r['filled'] ? 'on' : '' ?>"></i><?php endfor ?></span></div>
+            <?php if ($r['skills']): ?><div class="pj-chips"><?php foreach (csv_list($r['skills']) as $s): ?><span class="<?= $isMatch($s) ? 'is-match' : '' ?>"><?= e($s) ?></span><?php endforeach ?></div><?php endif ?>
+            <div class="pj-role-foot"><span class="xs muted"><?= (int) $r['filled'] ?>/<?= (int) $r['slots'] ?> filled</span>
+              <?php if ($canApply && !$full_r): ?><a class="btn btn-sm btn-primary" href="#apply" data-pick-role="<?= (int) $r['id'] ?>">Apply for this role</a><?php elseif ($full_r): ?><span class="qz-tag is-ok">Filled</span><?php endif ?>
+              <?php if ($isOwner): ?><form method="post" action="<?= e(url("projects/$pid/roles")) ?>" data-confirm="Remove the role “<?= e($r['title']) ?>”?"><?= csrf_field() ?><button class="icon-btn" name="delete" value="<?= (int) $r['id'] ?>" aria-label="Remove role"><?= icon('trash', 14) ?></button></form><?php endif ?></div>
+          </div>
+        <?php endforeach ?>
+      </div><?php elseif (!$isOwner): ?><p class="muted small">No specific roles: apply and tell the team how you’d help.</p><?php endif ?>
+      <?php if ($isOwner): ?>
+        <details class="pj-add"<?= $roles ? '' : ' open' ?>><summary><?= icon('plus', 15) ?> Add a role</summary>
+          <form method="post" action="<?= e(url("projects/$pid/roles")) ?>" class="pj-addform"><?= csrf_field() ?>
+            <input class="input" name="title" maxlength="80" placeholder="e.g. UI designer" required>
+            <input class="input" name="skills" maxlength="200" placeholder="Skills, comma separated">
+            <input class="input" type="number" name="slots" min="1" max="10" value="1" aria-label="People needed" style="max-width:90px">
+            <button class="btn btn-primary" type="submit">Add</button>
+          </form></details>
+      <?php endif ?>
+      <?php if ($canApply): ?>
+        <form id="apply" method="post" action="<?= e(url("projects/$pid/apply")) ?>" class="pj-apply" data-ai-writing-form data-ai-context="project application"><?= csrf_field() ?>
+          <b class="pj-apply-title"><?= icon('user-plus', 17) ?> Apply to join</b>
+          <?php if ($openRoles): ?><div class="field"><label class="f" for="pjRole">Role</label><select class="select" id="pjRole" name="role_id"><option value="">Any role, I’m flexible</option><?php foreach ($openRoles as $r): ?><option value="<?= (int) $r['id'] ?>"><?= e($r['title']) ?></option><?php endforeach ?></select></div><?php endif ?>
+          <label class="f">Why you’re a great fit</label><textarea class="textarea" name="message" data-ai-writing="body" placeholder="Your skills, past work, and when you’re free…"></textarea>
           <div class="writing-assist" data-writing-assist hidden aria-live="polite"></div>
           <button class="btn btn-primary mt" type="submit"><?= icon('send', 16) ?> Send application</button>
         </form>
-      </div>
-    </div>
+      <?php endif ?>
+    </section>
+    <?php endif ?>
+
+    <?php if ($milestones || $isOwner): ?>
+    <section class="card" id="roadmap">
+      <div class="card-title"><h2 class="lc-h2">Roadmap</h2><span class="small muted"><?= $msDone ?>/<?= count($milestones) ?> milestones reached</span></div>
+      <?php if ($milestones): ?><div class="progress mb"><i style="width:<?= count($milestones) ? round($msDone / count($milestones) * 100) : 0 ?>%"></i></div>
+        <ol class="pj-road">
+          <?php foreach ($milestones as $m): $late = !$m['done'] && $m['due_date'] && strtotime($m['due_date']) < strtotime('today'); ?>
+            <li class="<?= $m['done'] ? 'is-done' : '' ?><?= $late ? ' is-late' : '' ?>">
+              <?php if ($isMember): ?><form method="post" action="<?= e(url("projects/$pid/milestones")) ?>"><?= csrf_field() ?><button class="pj-dot" name="toggle" value="<?= (int) $m['id'] ?>" aria-label="<?= $m['done'] ? 'Mark as not reached' : 'Mark as reached' ?>: <?= e($m['title']) ?>"><?= $m['done'] ? icon('check', 14) : '' ?></button></form>
+              <?php else: ?><span class="pj-dot"><?= $m['done'] ? icon('check', 14) : '' ?></span><?php endif ?>
+              <span class="pj-road-body"><b><?= e($m['title']) ?></b><span class="xs muted"><?= $m['done'] ? 'Reached ' . e(date('j M', strtotime($m['done_at'] ?: 'now'))) : ($m['due_date'] ? ($late ? 'Overdue · was due ' : 'Due ') . e(date('j M Y', strtotime($m['due_date']))) : 'No date yet') ?></span></span>
+              <?php if ($isOwner): ?><form method="post" action="<?= e(url("projects/$pid/milestones")) ?>" data-confirm="Remove this milestone?"><?= csrf_field() ?><button class="icon-btn" name="delete" value="<?= (int) $m['id'] ?>" aria-label="Remove milestone"><?= icon('trash', 14) ?></button></form><?php endif ?>
+            </li>
+          <?php endforeach ?>
+        </ol>
+      <?php endif ?>
+      <?php if ($isOwner): ?>
+        <details class="pj-add"<?= $milestones ? '' : ' open' ?>><summary><?= icon('plus', 15) ?> Add a milestone</summary>
+          <form method="post" action="<?= e(url("projects/$pid/milestones")) ?>" class="pj-addform"><?= csrf_field() ?>
+            <input class="input" name="title" maxlength="160" placeholder="e.g. Clickable prototype ready" required>
+            <input class="input" type="date" name="due_date" style="max-width:170px" aria-label="Due date">
+            <button class="btn btn-primary" type="submit">Add</button>
+          </form></details>
+      <?php endif ?>
+    </section>
+    <?php endif ?>
+
+    <?php if ($files || $isMember || $fileCount): ?>
+    <section class="card" id="files">
+      <div class="card-title"><h2 class="lc-h2">Files &amp; links</h2><span class="small muted"><?= $p['status'] === 'completed' ? 'Shared publicly as proof of work' : 'Only the team can open these' ?></span></div>
+      <?php if ($files): ?><?php partial('project_files', ['files' => $files, 'pid' => $pid, 'u' => $u, 'isOwner' => $isOwner]) ?>
+      <?php elseif (!$canSeeFiles && $fileCount): ?><p class="pj-locked"><?= icon('lock', 15) ?> <?= (int) $fileCount ?> file<?= $fileCount === 1 ? '' : 's' ?> shared with the team. Join to see them, or check back when the project is finished.</p>
+      <?php else: ?><p class="muted small">Designs, documents, prototypes, repos… share everything the team needs in one place.</p><?php endif ?>
+      <?php if ($isMember): ?>
+        <details class="pj-add"<?= $files ? '' : ' open' ?>><summary><?= icon('upload', 15) ?> Share files or links</summary>
+          <form method="post" action="<?= e(url("projects/$pid/files")) ?>" enctype="multipart/form-data"><?= csrf_field() ?><?php partial('attach_fields') ?><button class="btn btn-primary mt" type="submit"><?= icon('plus', 16) ?> Share with the team</button></form>
+        </details>
+      <?php endif ?>
+    </section>
+    <?php endif ?>
 
     <?php if ($p['status'] === 'completed' && $isMember): ?>
     <section class="card team-vouch-hub" id="team-vouches" aria-labelledby="team-vouch-title">
@@ -64,7 +163,7 @@ $full = count($members) >= (int) $p['max_members'];
       <div class="stack"><?php foreach ($apps as $a): ?>
         <div class="row" style="align-items:flex-start;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--line)">
           <a href="<?= e(url('profile/' . $a['user_id'])) ?>"><?= avatar($a, 46) ?></a>
-          <div class="grow"><a href="<?= e(url('profile/' . $a['user_id'])) ?>"><b><?= e($a['full_name']) ?></b></a><?= verified_badge($a) ?> <span class="xs muted">· <?= e($a['major'] ?: 'Student') ?></span><p class="small" style="margin:4px 0 0"><?= e($a['message'] ?: 'No message.') ?></p></div>
+          <div class="grow"><a href="<?= e(url('profile/' . $a['user_id'])) ?>"><b><?= e($a['full_name']) ?></b></a><?= verified_badge($a) ?> <span class="xs muted">· <?= e($a['major'] ?: 'Student') ?></span><?php if ($a['role_title']): ?> <span class="chip sm">For: <?= e($a['role_title']) ?></span><?php endif ?><p class="small" style="margin:4px 0 0"><?= e($a['message'] ?: 'No message.') ?></p></div>
           <form method="post" action="<?= e(url('projects/' . $p['id'] . '/application/' . $a['id'])) ?>" class="row"><?= csrf_field() ?><button class="btn btn-primary btn-sm" name="decision" value="accept"><?= icon('check', 14) ?> Accept</button><button class="btn btn-ghost btn-sm" name="decision" value="reject">Decline</button></form>
         </div>
       <?php endforeach ?></div></div>

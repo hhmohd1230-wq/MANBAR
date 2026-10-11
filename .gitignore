@@ -17,5 +17,9 @@ Thumbs.db
 node_modules/
 MANBAR-project.zip
 
+# local demo rollback snapshots and desktop launcher helpers
+database/profile_demo_*.json
+tdongle-*/
+
 # local visual review/browser artifacts
 .impeccable/

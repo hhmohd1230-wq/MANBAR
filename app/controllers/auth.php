@@ -111,9 +111,7 @@ function auth_google(): void
         flash($ex->getMessage(), 'error');
         redirect('login');
     }
-    $to = $_SESSION['after_login'] ?? 'feed';
-    unset($_SESSION['after_login']);
-    redirect($to ?: 'feed');
+    go(after_login_target());   // after_login is an absolute path (REQUEST_URI); redirect() would add the base path twice
 }
 
 /* ---------- University email: code by email, optional password ---------- */
@@ -310,9 +308,7 @@ function auth_dev(): void
         flash($ex->getMessage(), 'error');
         redirect('login');
     }
-    $to = $_SESSION['after_login'] ?? 'feed';
-    unset($_SESSION['after_login']);
-    redirect($to ?: 'feed');
+    go(after_login_target());   // after_login is an absolute path (REQUEST_URI); redirect() would add the base path twice
 }
 
 function auth_logout(): void

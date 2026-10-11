@@ -17,6 +17,7 @@ $contacts = array_filter([
   ['phone', 'Phone', 'phone', !empty($p['phone']) ? 'tel:' . preg_replace('/[^0-9+]/', '', $p['phone']) : null, $p['phone'] ?? null],
 ], fn($contact) => !empty($contact[3]));
 ?>
+<link rel="stylesheet" href="<?= e(asset('css/profile.css')) ?>">
 <div class="page-grid profile-page">
   <div class="stack gap-l">
     <div class="card profile-card profile-effect-<?= e($profileEffect) ?>">
@@ -46,6 +47,7 @@ $contacts = array_filter([
           <?php else: ?>
             <button class="btn <?= $p['is_following'] ? '' : 'btn-primary' ?>" data-follow="<?= (int) $p['id'] ?>" data-primary="1"><?= $p['is_following'] ? 'Following' : 'Follow' ?></button>
             <a class="btn btn-ghost" href="<?= e(url('messages/' . $p['id'])) ?>"><?= icon('message', 16) ?> Message</a>
+            <?php partial('scam_report', ['target' => $p, 'me' => $u['id'], 'back' => 'profile/' . $p['id'], 'btnClass' => 'btn btn-ghost sr-icon', 'label' => 'Report']) ?>
             <?php if ($mentor): ?><a class="btn btn-ghost" href="<?= e(url('mentors/' . $p['id'])) ?>"><?= icon('compass', 16) ?> Mentor</a><?php endif ?>
           <?php endif ?>
         </div>

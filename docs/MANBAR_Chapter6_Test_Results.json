@@ -1,0 +1,957 @@
+{
+  "report": "MANBAR Chapter 6 System Testing Results",
+  "generated_at": "2026-10-11T22:07:34+04:00",
+  "source_root": "C:\\xampp\\htdocs\\manbar",
+  "isolated_source_copy": "C:\\xampp\\htdocs\\manbar_ch6_test_20261011",
+  "base_url": "http://127.0.0.1:8765",
+  "test_database": "manbar_ch6_test_20261011",
+  "original_database": "manbar",
+  "original_database_modified": false,
+  "original_database_integrity": {
+    "backup_before": "C:\\xampp\\htdocs\\manbar\\storage\\chapter6-evidence-20261011\\original-manbar-before-ch6-tests.sql",
+    "backup_before_sha256": "216398E43A1A22BF1EF9AECDAD5FB3C49F1EF887B1B2609BEBFF1117D386A476",
+    "backup_after": "C:\\xampp\\htdocs\\manbar\\storage\\chapter6-evidence-20261011\\original-manbar-after-ch6-tests.sql",
+    "backup_after_sha256": "59E17DDEBC413B0BAE352811C8C36990C041378177366F14DD2EC0699C9E7BEF",
+    "normalized_sha256_before_and_after": "9E046559FBC34498BDAB2E93C8A4B0985F1286070595D2959DB46A494A3A106F",
+    "unchanged": true
+  },
+  "test_accounts": [
+    "202699001@aau.ac.ae",
+    "202699002@aau.ac.ae",
+    "202699003@aau.ac.ae",
+    "mentor.testing@aau.ac.ae"
+  ],
+  "external_integrations_called": false,
+  "summary": {
+    "executed": 74,
+    "passed": 73,
+    "failed": 1,
+    "pass_percentage": 98.65,
+    "functional_http_database": {
+      "executed": 67,
+      "passed": 67,
+      "failed": 0,
+      "pass_percentage": 100.0
+    },
+    "independent_static_browser_security": {
+      "executed": 7,
+      "passed": 6,
+      "failed": 1
+    }
+  },
+  "commands": [
+    "C:\\xampp\\mysql\\bin\\mysqldump.exe -uroot --single-transaction --routines --triggers --events --databases manbar --result-file=C:\\xampp\\htdocs\\manbar\\storage\\chapter6-evidence-20261011\\original-manbar-before-ch6-tests.sql",
+    "C:\\xampp\\php\\php.exe database\\install.php --fresh  (working directory: C:\\xampp\\htdocs\\manbar_ch6_test_20261011)",
+    "C:\\xampp\\php\\php.exe -d upload_max_filesize=30M -d post_max_size=40M -d session.save_path=C:\\xampp\\htdocs\\manbar_ch6_test_20261011\\storage\\sessions -S 127.0.0.1:8765 -t public public/index.php",
+    "python chapter6_test_runner.py 2>&1 | Tee-Object -FilePath C:\\xampp\\htdocs\\manbar\\storage\\chapter6-evidence-20261011\\test-run.stdout.log",
+    "rg --files -g '*.php'  then for each file: C:\\xampp\\php\\php.exe -l <file>",
+    "rg --files public -g '*.js'  then for each file: node --check <file>",
+    "PowerShell route scan: parse app\\routes.php handlers and compare them with function declarations in app\\controllers\\*.php",
+    "C:\\xampp\\mysql\\bin\\mysql.exe -uroot -N -B manbar_ch6_test_20261011 -e <information_schema table and foreign-key queries>",
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe --headless=new --disable-gpu --no-first-run --window-size=1440,1000 --virtual-time-budget=3000 --screenshot=<evidence> http://127.0.0.1:8765/login",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe --headless --disable-gpu --no-first-run --no-default-browser-check --window-size=1440,1000 --virtual-time-budget=3000 --screenshot=<evidence> http://127.0.0.1:8765/login",
+    "Invoke-WebRequest -Uri http://127.0.0.1:8765/uploads/messages/<random-test-file>.txt -UseBasicParsing -SkipHttpErrorCheck  (no session/cookies)",
+    "C:\\xampp\\mysql\\bin\\mysqldump.exe -uroot --single-transaction --routines --triggers --events --databases manbar --result-file=C:\\xampp\\htdocs\\manbar\\storage\\chapter6-evidence-20261011\\original-manbar-after-ch6-tests.sql",
+    "Normalize both original-database dumps by removing only '-- Dump completed on ...', calculate SHA-256, and compare"
+  ],
+  "boundary_rules": [
+    {
+      "field": "Verification code",
+      "rule": "Exactly 6 digits; maximum 5 wrong tries; code expires after 10 minutes",
+      "source": "app/auth.php:179-190",
+      "executed": "AUTH-003 to AUTH-006"
+    },
+    {
+      "field": "Post title/body/tags",
+      "rule": "Title minimum 3 and maximum stored 200; body minimum 10 and maximum stored 5,000; maximum 6 tags",
+      "source": "app/controllers/feed.php:165-179",
+      "executed": "FEED-001 to FEED-003"
+    },
+    {
+      "field": "Image upload",
+      "rule": "Maximum 4 MB; detected MIME must be JPEG/PNG/WebP/GIF",
+      "source": "config/config.php:71; app/controllers/feed.php:142-155",
+      "executed": "FILE-001, FILE-001A, FILE-001B"
+    },
+    {
+      "field": "Project",
+      "rule": "Title 3-200; description 15-5,000; team size clamped to 2-30; maximum 10 skills",
+      "source": "app/controllers/projects.php:123-142",
+      "executed": "PROJ-001 to PROJ-003"
+    },
+    {
+      "field": "Vouch",
+      "rule": "Completed project; no self-vouch; body minimum 30; rating clamped 1-5; maximum 3 traits",
+      "source": "app/controllers/projects.php:266-291",
+      "executed": "VOUCH-001, VOUCH-002"
+    },
+    {
+      "field": "Marketplace service",
+      "rule": "Title minimum 5; description minimum 20; price 0-100,000; delivery 1-90; slots 1-50; revisions 0-20",
+      "source": "app/controllers/market.php:237-260, 287-305",
+      "executed": "MKT-001, MKT-002"
+    },
+    {
+      "field": "Course",
+      "rule": "Title minimum 5; description minimum 20; price 0-9,999; positive price below AED 2 raised to AED 2",
+      "source": "app/controllers/learn.php:211-235",
+      "executed": "LEARN-001, LEARN-002"
+    },
+    {
+      "field": "Quiz settings",
+      "rule": "Time 0-300 min; live 5-120 sec; pass 0-100%; attempts 0-20; question points 1-100",
+      "source": "app/controllers/quiz.php:34-48, 55-79",
+      "executed": "QUIZ-001 to QUIZ-006"
+    },
+    {
+      "field": "Message attachment",
+      "rule": "1 byte through 12 MB; extension/MIME allowlist; images, audio, PDF, Office, text/CSV, ZIP",
+      "source": "app/controllers/social.php:48-93",
+      "executed": "FILE-002 to FILE-005, SEC-007"
+    },
+    {
+      "field": "Course/service material",
+      "rule": "Maximum 25 MB, extension and MIME rules, stored outside public web root",
+      "source": "app/learning.php:317-335",
+      "executed": "Static inspection; proposed full boundary execution"
+    }
+  ],
+  "executed_tests": [
+    {
+      "test_case_id": "AUTH-001",
+      "module": "University authentication",
+      "input_values": "GET /login",
+      "expected_output": "HTTP 200 and AAU sign-in page",
+      "actual_output": "HTTP 200; AAU domain visible=True",
+      "result": "Pass",
+      "evidence": "HTTP 200 http://127.0.0.1:8765/login; body: Sign in · MANBAR MANBAR منبر The stage for every student idea. One trusted place for ideas, teams, services, courses and mentors at your university. Ideas Projects Marketplace Courses Mentors Al Ain University · Capstone project Sign in or join Use your univer",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "AUTH-002",
+      "module": "University authentication",
+      "input_values": "outsider@gmail.com",
+      "expected_output": "Reject non-university address; no user created",
+      "actual_output": "HTTP 200; validation shown; users 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/login; HTTP 200 http://127.0.0.1:8765/login; body: Sign in · MANBAR MANBAR منبر The stage for every student idea. One trusted place for ideas, teams, services, courses and mentors at your university. Ideas Projects Marketplace Courses Mentors Al Ain University · Capstone project Sign in or join Use your univer",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "SEC-001",
+      "module": "Security / CSRF",
+      "input_values": "POST /auth/dev without _csrf",
+      "expected_output": "HTTP 419; no authentication",
+      "actual_output": "HTTP 419; {\"ok\":false,\"error\":\"Session expired. Refresh the page.\"}",
+      "result": "Pass",
+      "evidence": "HTTP 419 http://127.0.0.1:8765/auth/dev; body: {\"ok\":false,\"error\":\"Session expired. Refresh the page.\"}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "AUTH-003",
+      "module": "University authentication",
+      "input_values": "202699003@aau.ac.ae",
+      "expected_output": "Create one locally logged six-digit code; no email sent",
+      "actual_output": "HTTP 200; local code length=6; login_codes=1; SMTP disabled",
+      "result": "Pass",
+      "evidence": "redirects 302:/auth/email/verify; HTTP 200 http://127.0.0.1:8765/auth/email/verify; body: Check your email · MANBAR MANBAR منبر The stage for every student idea. One trusted place for ideas, teams, services, courses and mentors at your university. Ideas Projects Marketplace Courses Mentors Al Ain University · Capstone project Check your email We se",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "AUTH-004",
+      "module": "University authentication",
+      "input_values": "5-digit code 12345",
+      "expected_output": "Reject; attempts becomes 1",
+      "actual_output": "HTTP 200; attempts=1; rejection shown",
+      "result": "Pass",
+      "evidence": "redirects 302:/auth/email/verify; HTTP 200 http://127.0.0.1:8765/auth/email/verify; body: Check your email · MANBAR MANBAR منبر The stage for every student idea. One trusted place for ideas, teams, services, courses and mentors at your university. Ideas Projects Marketplace Courses Mentors Al Ain University · Capstone project Check your email We se",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "AUTH-005",
+      "module": "University authentication",
+      "input_values": "7-digit code 1234567",
+      "expected_output": "Reject; attempts becomes 2",
+      "actual_output": "HTTP 200; attempts=2; rejection shown",
+      "result": "Pass",
+      "evidence": "redirects 302:/auth/email/verify; HTTP 200 http://127.0.0.1:8765/auth/email/verify; body: Check your email · MANBAR MANBAR منبر The stage for every student idea. One trusted place for ideas, teams, services, courses and mentors at your university. Ideas Projects Marketplace Courses Mentors Al Ain University · Capstone project Check your email We se",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "AUTH-006",
+      "module": "University authentication",
+      "input_values": "Correct locally logged 6-digit code",
+      "expected_output": "Sign in, create roster-matched verified user, mark code used",
+      "actual_output": "HTTP 200; user=['Mariam Test Student', '1', '1']; used_codes=1",
+      "result": "Pass",
+      "evidence": "redirects 302:/feed; HTTP 200 http://127.0.0.1:8765/feed; body: Home · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 25 XP 125 XP to Bronze ★★ New post 1 Notifications Your most recent",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FEED-001",
+      "module": "Community Feed",
+      "input_values": "title length 2; body length 9",
+      "expected_output": "Reject; no row inserted",
+      "actual_output": "HTTP 200; posts 0->0; validation shown",
+      "result": "Pass",
+      "evidence": "redirects 302:/feed?compose=idea; HTTP 200 http://127.0.0.1:8765/feed?compose=idea; body: Home · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 25 XP 125 XP to Bronze ★★ New post 1 Notifications Your most recent",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FEED-002",
+      "module": "Community Feed",
+      "input_values": "title length 3; body length 10",
+      "expected_output": "Create visible post at minimum boundary",
+      "actual_output": "HTTP 302; post_id=1; lengths/tags/user=['3', '10', 'testing,boundary', '2']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/post/create; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FEED-003",
+      "module": "Community Feed",
+      "input_values": "title 201; body 5001; 7 tags",
+      "expected_output": "Create after truncating to 200/5000 and six tags",
+      "actual_output": "HTTP 302; post_id=2; stored title/body lengths=['200', '5000']; tags=one,two,three,four,five,six",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/post/create; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FEED-004",
+      "module": "Community Feed",
+      "input_values": "type=malicious",
+      "expected_output": "HTTP 422 Unknown post type",
+      "actual_output": "HTTP 422; Error · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 45 XP 105 XP to Bronze ★★ New post 1 Notifications Your most recen",
+      "result": "Pass",
+      "evidence": "HTTP 422 http://127.0.0.1:8765/post/create; body: Error · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 45 XP 105 XP to Bronze ★★ New post 1 Notifications Your most recen",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FEED-005",
+      "module": "Community Feed",
+      "input_values": "student type=announcement",
+      "expected_output": "HTTP 403",
+      "actual_output": "HTTP 403; No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 45 XP 105 XP to Bronze ★★ New post 1 Notifications Your most r",
+      "result": "Pass",
+      "evidence": "HTTP 403 http://127.0.0.1:8765/post/create; body: No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 45 XP 105 XP to Bronze ★★ New post 1 Notifications Your most r",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "SEC-002",
+      "module": "Feed output encoding",
+      "input_values": "title contains <script>alert(1)</script>",
+      "expected_output": "Render escaped text; do not execute raw script",
+      "actual_output": "HTTP 200; raw_script=False; escaped_script=True",
+      "result": "Pass",
+      "evidence": "HTTP 200 http://127.0.0.1:8765/post/3; body: XSS <script>alert(1)</script> · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 55 XP 95 XP to Bronze ★★ New post 1 Notifi",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FILE-001",
+      "module": "File upload validation",
+      "input_values": "fake.jpg containing plain text",
+      "expected_output": "Reject MIME/extension mismatch; no post",
+      "actual_output": "HTTP 200; posts 3->3; MIME validation shown",
+      "result": "Pass",
+      "evidence": "redirects 302:/feed?compose=idea; HTTP 200 http://127.0.0.1:8765/feed?compose=idea; body: Home · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 55 XP 95 XP to Bronze ★★ New post 1 Notifications Your most recent ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FILE-001A",
+      "module": "File upload boundary",
+      "input_values": "valid PNG exactly 4,194,304 bytes",
+      "expected_output": "Accept image and store exactly 4 MB",
+      "actual_output": "HTTP 302; posts 3->4; stored_size=4194304; path=uploads/posts/5ae52a490d2e28d1758a.png",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/post/create; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FILE-001B",
+      "module": "File upload boundary",
+      "input_values": "valid PNG 4,194,305 bytes",
+      "expected_output": "Reject image at 4 MB + 1 byte and insert no post",
+      "actual_output": "HTTP 200; posts 4->4; payload_bytes=4194305; size_message=True",
+      "result": "Pass",
+      "evidence": "redirects 302:/feed?compose=idea; HTTP 200 http://127.0.0.1:8765/feed?compose=idea; body: Home · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 65 XP 85 XP to Bronze ★★ New post 1 Notifications Your most recent ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-001",
+      "module": "Project creation",
+      "input_values": "title 2; description 14",
+      "expected_output": "Reject and insert no project",
+      "actual_output": "HTTP 200; projects 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/projects/new; HTTP 200 http://127.0.0.1:8765/projects/new; body: Start a project · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 65 XP 85 XP to Bronze ★★ New post 1 Notifications Your m",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-002",
+      "module": "Project creation",
+      "input_values": "title 3; description 15; team size 1",
+      "expected_output": "Create project; clamp team size to 2; add owner",
+      "actual_output": "HTTP 302; project_id=1; values=['3', '15', '2', '2']; owner_membership=1",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/projects/new; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-003",
+      "module": "Project creation",
+      "input_values": "title 201; description 5001; team size 31",
+      "expected_output": "Truncate 200/5000 and clamp team size to 30",
+      "actual_output": "HTTP 302; project_id=2; stored=['200', '5000', '30', '3']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/projects/new; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-004",
+      "module": "Project applications",
+      "input_values": "student 202699002 applies once",
+      "expected_output": "Create one pending application and notify owner",
+      "actual_output": "HTTP 200; applications 0->1; id=1",
+      "result": "Pass",
+      "evidence": "redirects 302:/projects/1; HTTP 200 http://127.0.0.1:8765/projects/1; body: ABC · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 25 XP 125 XP to Bronze ★★ New post 1 Notifications Your most recent ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-005",
+      "module": "Project applications",
+      "input_values": "duplicate application",
+      "expected_output": "Reject duplicate; retain one row",
+      "actual_output": "HTTP 200; matching rows 1->1",
+      "result": "Pass",
+      "evidence": "redirects 302:/projects/1; HTTP 200 http://127.0.0.1:8765/projects/1; body: ABC · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 25 XP 125 XP to Bronze ★★ New post 1 Notifications Your most recent ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "SEC-003",
+      "module": "Project authorization",
+      "input_values": "applicant attempts to accept own application",
+      "expected_output": "HTTP 403; application stays pending",
+      "actual_output": "HTTP 403; status=pending",
+      "result": "Pass",
+      "evidence": "HTTP 403 http://127.0.0.1:8765/projects/1/application/1; body: No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 25 XP 125 XP to Bronze ★★ New post 1 Notifications Your most r",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-006",
+      "module": "Project applications",
+      "input_values": "owner accepts application",
+      "expected_output": "Status accepted; applicant added as member",
+      "actual_output": "HTTP 302; status/member=['accepted', '1']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/projects/1/application/1; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-007",
+      "module": "Project tasks",
+      "input_values": "member adds assigned task then moves todo->done",
+      "expected_output": "Task stored and status becomes done",
+      "actual_output": "add HTTP 302; move HTTP 302; task=['Implement test endpoint', 'done', '3', '2026-10-20']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/projects/1/tasks/1; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROJ-008",
+      "module": "Project milestones",
+      "input_values": "owner creates; member marks complete",
+      "expected_output": "Milestone done=1 and update recorded",
+      "actual_output": "create HTTP 302; member toggle HTTP 302; done=1",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/projects/1/milestones; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "VOUCH-001",
+      "module": "Project vouching and achievements",
+      "input_values": "valid 30-character vouch before completion",
+      "expected_output": "Reject until project completed",
+      "actual_output": "HTTP 200; vouches 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/projects/1; HTTP 200 http://127.0.0.1:8765/projects/1; body: ABC · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 35 XP 115 XP to Bronze ★★ New post 3 Notifications Your most recent ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "VOUCH-002",
+      "module": "Project vouching and achievements",
+      "input_values": "completed project; 5 stars; 3 approved traits; body 64 chars",
+      "expected_output": "Store vouch, calculate positive XP, refresh reputation",
+      "actual_output": "complete HTTP 302; vouch HTTP 302; vouch=['5', 'Collaborative,Reliable,Strong communicator', '150']; reputation_score=305; points_before_vouch=125",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/projects/1/vouch/2; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MKT-001",
+      "module": "Marketplace service creation",
+      "input_values": "title length 4; description length 19",
+      "expected_output": "Reject; no listing",
+      "actual_output": "HTTP 200; services 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/marketplace/new; HTTP 200 http://127.0.0.1:8765/marketplace/new; body: New listing · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 3 of 3 305 XP 145 XP to Silver ★ New post 4 Notifications Your most",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MKT-002",
+      "module": "Marketplace service creation",
+      "input_values": "title 5; description 20; price 100001; days 0; slots 0; revisions 25",
+      "expected_output": "Create; clamp to 100000/1/1/20",
+      "actual_output": "HTTP 302; service_id=1; stored=['5', '20', '100000', '1', '1', '20', '2']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/marketplace/new; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MKT-003",
+      "module": "Marketplace orders",
+      "input_values": "seller requests own listing",
+      "expected_output": "Reject; no request row",
+      "actual_output": "HTTP 200; requests 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/marketplace/1; HTTP 200 http://127.0.0.1:8765/marketplace/1; body: ABCDE · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 3 of 3 315 XP 135 XP to Silver ★ New post 4 Notifications Your most recen",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MKT-004",
+      "module": "Marketplace orders",
+      "input_values": "buyer requests listing",
+      "expected_output": "Create pending request, message, and notification",
+      "actual_output": "HTTP 302; request_id=1; conversation_messages=1",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/marketplace/1/request; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PAY-001",
+      "module": "Marketplace demonstration payments",
+      "input_values": "AED 250; PayPal demo; pay before",
+      "expected_output": "No real payment; insert held demo payment and accept order",
+      "actual_output": "offer HTTP 302 ['offered', '250', '7', 'before']; accept HTTP 302 Location=/checkout/order/1; demo pay HTTP 302; payment=['250', 'paypal', 'full', 'held', 'MB-']; request_status=accepted",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/checkout/order/1; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MKT-005",
+      "module": "Marketplace orders and reviews",
+      "input_values": "deliver; confirm; review rating 6",
+      "expected_output": "Complete order, release demo hold, clamp review to 5",
+      "actual_output": "deliver/confirm/review HTTP 302/302/302; request=completed; payment=released; review=['5', '47']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/marketplace/1/review; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "SEC-004",
+      "module": "Learning Center authorization",
+      "input_values": "student attempts course creation",
+      "expected_output": "HTTP 403",
+      "actual_output": "HTTP 403; No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages 3 Settings Rank 2 View Silver ★ ★ ★ Star 1 of 3 455 XP 145 XP to Silver ★★ New post 3 9 Notifications Your m",
+      "result": "Pass",
+      "evidence": "HTTP 403 http://127.0.0.1:8765/learn/new; body: No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages 3 Settings Rank 2 View Silver ★ ★ ★ Star 1 of 3 455 XP 145 XP to Silver ★★ New post 3 9 Notifications Your m",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "LEARN-001",
+      "module": "Course creation",
+      "input_values": "title 4; description 19",
+      "expected_output": "Reject and insert no course",
+      "actual_output": "HTTP 200; courses 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/learn/new; HTTP 200 http://127.0.0.1:8765/learn/new; body: Create a course · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 25 XP 125 XP to Bronze ★★ New post 1 Notifications Your ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "LEARN-002",
+      "module": "Course creation",
+      "input_values": "title 5; description 20; price AED 1",
+      "expected_output": "Create and raise positive sub-minimum price to AED 2",
+      "actual_output": "HTTP 302; course_id=1; stored=['5', '20', '2.00', 'published', '4']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/learn/new; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "LEARN-003",
+      "module": "Learning Center enrollment",
+      "input_values": "teacher adds lesson; changes isolated course price to AED 0; student enrolls",
+      "expected_output": "Store lesson and one enrollment",
+      "actual_output": "lesson HTTP 302, id=1; free-settings HTTP 302; price=0.00; enroll HTTP 302; enrolled=1",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/learn/1/enroll; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "QUIZ-001",
+      "module": "Quiz creation",
+      "input_values": "publish empty quiz; time 301; live 4; pass 101; attempts 21",
+      "expected_output": "Remain draft; clamp to 300/5/100/20",
+      "actual_output": "create HTTP 302; settings HTTP 200; quiz=['draft', '300', '5', '100', '20']",
+      "result": "Pass",
+      "evidence": "redirects 302:/learn/1/quiz/1/edit; HTTP 200 http://127.0.0.1:8765/learn/1/quiz/1/edit; body: Edit quiz · Boundary Quiz · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 40 XP 110 XP to Bronze ★★ New post 2 Notificat",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "QUIZ-002",
+      "module": "Quiz question validation",
+      "input_values": "MCQ with one option",
+      "expected_output": "Reject; no question",
+      "actual_output": "HTTP 200; questions 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/learn/1/quiz/1/edit#add; HTTP 200 http://127.0.0.1:8765/learn/1/quiz/1/edit#add; body: Edit quiz · Boundary Quiz · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 40 XP 110 XP to Bronze ★★ New post 2 Notificat",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "QUIZ-003",
+      "module": "Quiz creation",
+      "input_values": "valid 3-option MCQ; points 101; max attempts 1",
+      "expected_output": "Clamp points to 100 and publish",
+      "actual_output": "question HTTP 302; publish HTTP 302; stored=['100', 'published', '1']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/learn/1/quiz/1/settings; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "QUIZ-004",
+      "module": "Course/quiz integration",
+      "input_values": "student starts quiz before preceding lesson is complete, then completes lesson",
+      "expected_output": "Redirect to the lesson, create no attempt, then advance enrollment to quiz",
+      "actual_output": "blocked HTTP 302 Location=/learn/1/lesson/1; attempts 0->0; lesson-complete HTTP 302; current_step=q1",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/learn/1/quiz/1/start; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "QUIZ-005",
+      "module": "Quiz submission and automatic grading",
+      "input_values": "autosave choice 99 then submit correct choice 1",
+      "expected_output": "Invalid choice becomes NULL; correct answer grades 100/100",
+      "actual_output": "start/save/submit HTTP 302/200/302; invalid choice stored=NULL; attempt=['graded', '100', '100']; answer=['1', '1', '100']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/quiz/attempt/1/submit; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "QUIZ-006",
+      "module": "Quiz attempt limits",
+      "input_values": "second start when max_attempts=1",
+      "expected_output": "Reject; keep one attempt",
+      "actual_output": "HTTP 200; attempts 1->1",
+      "result": "Pass",
+      "evidence": "redirects 302:/learn/1/quiz/1; HTTP 200 http://127.0.0.1:8765/learn/1/quiz/1; body: Boundary Quiz · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages 2 Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 113 XP 37 XP to Bronze ★★ New post 2 7 Notifications You",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "LIVE-001",
+      "module": "Live quiz sessions",
+      "input_values": "host starts; student joins; correct answer; duplicate answer",
+      "expected_output": "Six-digit session, one player/answer, duplicate HTTP 409",
+      "actual_output": "start=302; code_length=6; join=200/player=1; open=200; answer=200; duplicate=409; db_answer=['1', '995']",
+      "result": "Pass",
+      "evidence": "HTTP 409 http://127.0.0.1:8765/live/454993/answer; body: {\"ok\":false,\"error\":\"This question is closed.\"}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROFILE-001",
+      "module": "Profile management",
+      "input_values": "theme 9; javascript URL; invalid style/effect; valid mentor fields",
+      "expected_output": "Clamp theme; reject URL; default styles; activate mentor",
+      "actual_output": "HTTP 302; user=['5', 'NULL', 'classic', 'none', '+971 50 000 0000']; mentor=['1', 'Software testing']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/profile/edit; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PROFILE-002",
+      "module": "Profile management",
+      "input_values": "roster student submits Changed Name and example.com",
+      "expected_output": "Preserve roster name; normalize website to HTTPS",
+      "actual_output": "HTTP 302; name/website=['Alya Test Student', 'https://example.com']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/profile/edit; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MENTOR-001",
+      "module": "Mentorship requests",
+      "input_values": "topic length 3",
+      "expected_output": "Reject and insert no request",
+      "actual_output": "HTTP 200; requests 0->0",
+      "result": "Pass",
+      "evidence": "redirects 302:/mentors/4; HTTP 200 http://127.0.0.1:8765/mentors/4; body: Dr. Test Mentor · Mentor · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages 3 Settings Rank 2 View Silver ★ ★ ★ Star 1 of 3 455 XP 145 XP to Silver ★★ New post 3 9 Notif",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MENTOR-002",
+      "module": "Mentorship requests",
+      "input_values": "valid request then mentor accepts with date",
+      "expected_output": "Accepted status and scheduled date",
+      "actual_output": "request HTTP 302; accept HTTP 302; stored=['accepted', '2026-10-20 10:00:00']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/mentorship/1; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MSG-001",
+      "module": "Private messaging",
+      "input_values": "empty body and no attachment",
+      "expected_output": "HTTP 422; no message",
+      "actual_output": "HTTP 422; messages 0->0; {\"ok\":false,\"error\":\"Write a message, attach a file, or record a voice message.\"}",
+      "result": "Pass",
+      "evidence": "HTTP 422 http://127.0.0.1:8765/messages/1; body: {\"ok\":false,\"error\":\"Write a message, attach a file, or record a voice message.\"}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MSG-002",
+      "module": "Private messaging",
+      "input_values": "typing signal and text message",
+      "expected_output": "Immediate JSON send and receiver polling without refresh",
+      "actual_output": "typing/send/poll HTTP 200/200/200; message_id=6; polled=1",
+      "result": "Pass",
+      "evidence": "HTTP 200 http://127.0.0.1:8765/api/messages/2?after=0; body: {\"ok\":true,\"messages\":[{\"id\":6,\"sender_id\":2,\"receiver_id\":1,\"mine\":false,\"body\":\"Fast fictional test message\",\"created_at\":\"2026-10-11 22:04:10\",\"time\":\"22:04\",\"attachment\":null}],\"typing\":true}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FILE-002",
+      "module": "Message attachment validation",
+      "input_values": "malware.exe",
+      "expected_output": "HTTP 422; extension rejected; no message",
+      "actual_output": "HTTP 422; messages 1->1; {\"ok\":false,\"error\":\"Use an image, voice recording, PDF, Office document, text/CSV file, or ZIP archive.\"}",
+      "result": "Pass",
+      "evidence": "HTTP 422 http://127.0.0.1:8765/messages/1; body: {\"ok\":false,\"error\":\"Use an image, voice recording, PDF, Office document, text/CSV file, or ZIP archive.\"}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FILE-003",
+      "module": "Message attachment validation",
+      "input_values": "fake.pdf containing plain text",
+      "expected_output": "HTTP 422 MIME/extension mismatch",
+      "actual_output": "HTTP 422; {\"ok\":false,\"error\":\"This file type does not match its extension.\"}",
+      "result": "Pass",
+      "evidence": "HTTP 422 http://127.0.0.1:8765/messages/1; body: {\"ok\":false,\"error\":\"This file type does not match its extension.\"}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FILE-004",
+      "module": "Message attachment validation",
+      "input_values": "valid text/plain evidence.txt",
+      "expected_output": "Store randomized file and attachment metadata",
+      "actual_output": "HTTP 200; message_id=7; attachment=['evidence.txt', 'text/plain', '40', '/uploads/messages/20261011-783b9b6608b97051c19ee752.txt']; stored_file_exists=True",
+      "result": "Pass",
+      "evidence": "HTTP 200 http://127.0.0.1:8765/messages/1; body: {\"ok\":true,\"message\":{\"id\":7,\"sender_id\":2,\"receiver_id\":1,\"mine\":true,\"body\":\"Attached test evidence\",\"created_at\":\"2026-10-11 22:04:11\",\"time\":\"22:04\",\"attachment\":{\"url\":\"/uploads/messages/20261011-783b9b6608b97051c19ee752.txt\",\"name\":\"evidence.txt\",\"type\":",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "FILE-005",
+      "module": "Message attachment validation",
+      "input_values": "text file of 12 MB + 1 byte",
+      "expected_output": "HTTP 422; 12 MB application boundary enforced",
+      "actual_output": "HTTP 422; payload_bytes=12582913; {\"ok\":false,\"error\":\"Attachments can be up to 12 MB.\"}",
+      "result": "Pass",
+      "evidence": "HTTP 422 http://127.0.0.1:8765/messages/1; body: {\"ok\":false,\"error\":\"Attachments can be up to 12 MB.\"}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "NOTIF-001",
+      "module": "Notifications",
+      "input_values": "peek then mark all read",
+      "expected_output": "API lists unread; POST makes unread count zero",
+      "actual_output": "peek HTTP 200; unread_before=3; API_unread=3; mark HTTP 302; unread_after=0",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/notifications/read-all; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "SET-001",
+      "module": "Profile settings",
+      "input_values": "enable only message notification group",
+      "expected_output": "Persist per-category preferences",
+      "actual_output": "HTTP 302; preference_rows=7; messages=1; other_groups_off=6",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/settings/notifications; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "AI-001",
+      "module": "AI Assistant validation",
+      "input_values": "text length 3; local_only=1",
+      "expected_output": "HTTP 422",
+      "actual_output": "HTTP 422; {\"ok\":false,\"error\":\"Write a few words first.\"}",
+      "result": "Pass",
+      "evidence": "HTTP 422 http://127.0.0.1:8765/api/ai/assist; body: {\"ok\":false,\"error\":\"Write a few words first.\"}",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "AI-002",
+      "module": "AI Assistant fallback",
+      "input_values": "malformed sentence; local_only=1; all provider keys blank",
+      "expected_output": "HTTP 200 using the local rules engine with corrected text",
+      "actual_output": "HTTP 200; engine=rules; corrected=I want to improve my capstone project and I like to improve it.",
+      "result": "Pass",
+      "evidence": "HTTP 200 http://127.0.0.1:8765/api/ai/assist; body: {\"ok\":true,\"fix\":{\"corrected\":\"I want to improve my capstone project and I like to improve it.\",\"changes\":[{\"from\":\"impove\",\"to\":\"improve\",\"why\":\"Spelling / shorthand\"},{\"from\":\"lke\",\"to\":\"like\",\"why\":\"Spelling / shorthand\"},{\"from\":\"…\",\"to\":\"…\",\"why\":\"Improve",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "SEC-005",
+      "module": "AI Assistant rate limiting",
+      "input_values": "31 requests within 60 seconds",
+      "expected_output": "31st request HTTP 429",
+      "actual_output": "31 requests in <60 s; statuses=30x200,1x429; final=429",
+      "result": "Pass",
+      "evidence": "Automated loop; final request returned rate-limit JSON.",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "ADMIN-001",
+      "module": "Administrator permissions",
+      "input_values": "student GET /admin",
+      "expected_output": "HTTP 403",
+      "actual_output": "HTTP 403; No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages 3 Settings Rank 2 View Silver ★ ★ ★ Star 1 of 3 455 XP 145 XP to Silver ★★ New post 3 11 Notifications Your ",
+      "result": "Pass",
+      "evidence": "HTTP 403 http://127.0.0.1:8765/admin; body: No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages 3 Settings Rank 2 View Silver ★ ★ ★ Star 1 of 3 455 XP 145 XP to Silver ★★ New post 3 11 Notifications Your ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "ADMIN-002",
+      "module": "Administrator permissions",
+      "input_values": "configured test admin login",
+      "expected_output": "HTTP 200 and admin role",
+      "actual_output": "HTTP 200; role=admin; dashboard_visible=False",
+      "result": "Pass",
+      "evidence": "HTTP 200 http://127.0.0.1:8765/admin; body: Dashboard · MANBAR Admin MAN BAR Admin console Overview Dashboard People Users Student roster Content Moderation Projects, services, courses Platform Universities Settings & audit Back Open the community Dashboard Sunday, 11 October 2026 MA MANBAR Admin chapte",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "ROSTER-001",
+      "module": "Student roster management",
+      "input_values": "valid fictional 202699010 record",
+      "expected_output": "Insert one roster row",
+      "actual_output": "HTTP 302; roster rows 0->1",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/admin/roster/add; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "ROSTER-002",
+      "module": "Student roster management",
+      "input_values": "CSV: header + 1 valid + 2 invalid rows",
+      "expected_output": "Import one and skip two",
+      "actual_output": "HTTP 200; valid_rows=1; invalid_rows=0; import_summary_visible=True",
+      "result": "Pass",
+      "evidence": "redirects 302:/admin/roster; HTTP 200 http://127.0.0.1:8765/admin/roster; body: Student roster · MANBAR Admin MAN BAR Admin console Overview Dashboard People Users Student roster Content Moderation Projects, services, courses Platform Universities Settings & audit Back Open the community Student roster Sunday, 11 October 2026 MA MANBAR Ad",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "MOD-001",
+      "module": "Content moderation",
+      "input_values": "student reports post; admin hides with reason",
+      "expected_output": "Post hidden and report resolved",
+      "actual_output": "report HTTP 200; moderate HTTP 302; post/report=['hidden', 'resolved']",
+      "result": "Pass",
+      "evidence": "HTTP 302 http://127.0.0.1:8765/admin/moderate; body: ",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "SEC-006",
+      "module": "Content moderation authorization",
+      "input_values": "student POST /admin/moderate",
+      "expected_output": "HTTP 403",
+      "actual_output": "HTTP 403",
+      "result": "Pass",
+      "evidence": "HTTP 403 http://127.0.0.1:8765/admin/moderate; body: No access · MANBAR MAN BAR منبر · AAU students Home feed Projects Marketplace Learning center Mentors People You My profile Achievements Saved Messages 2 Settings Rank 1 View Bronze ★ ★ ★ Star 1 of 3 113 XP 37 XP to Bronze ★★ New post 2 8 Notifications Your mo",
+      "method": "Automated HTTP + database verification"
+    },
+    {
+      "test_case_id": "PERF-001",
+      "module": "Safe performance measurement",
+      "input_values": "30 sequential authenticated GET /feed requests on localhost",
+      "expected_output": "All HTTP 200; record latency distribution",
+      "actual_output": "{\"requests\": 30, \"status_200\": 30, \"min_ms\": 108.0, \"avg_ms\": 129.89, \"p95_ms\": 155.45, \"max_ms\": 170.02}",
+      "result": "Pass",
+      "evidence": "Sequential loopback GET measurements; not a production load test.",
+      "method": "Automated local sequential timing"
+    },
+    {
+      "test_case_id": "ISO-001",
+      "module": "Environment isolation",
+      "input_values": "compare schemas after all tests",
+      "expected_output": "Original remains 55 tables; runtime tables appear only in test DB",
+      "actual_output": "original_tables=55; test_tables=55; original users snapshot=17\t17\t2026-10-03 09:05:35; test DB=manbar_ch6_test_20261011",
+      "result": "Pass",
+      "evidence": "Read-only information_schema queries and isolated database name.",
+      "method": "Automated read-only database inspection"
+    },
+    {
+      "test_case_id": "STATIC-001",
+      "module": "PHP source integrity",
+      "input_values": "All 123 PHP files discovered with rg --files -g '*.php'",
+      "expected_output": "Every file passes php -l",
+      "actual_output": "123 files checked; 0 lint failures",
+      "result": "Pass",
+      "evidence": "storage/chapter6-evidence-20261011/php-lint.log",
+      "method": "Automated static syntax execution"
+    },
+    {
+      "test_case_id": "STATIC-002",
+      "module": "JavaScript source integrity",
+      "input_values": "All 6 JavaScript files under public",
+      "expected_output": "Every file passes node --check",
+      "actual_output": "6 files checked; 0 syntax failures",
+      "result": "Pass",
+      "evidence": "storage/chapter6-evidence-20261011/js-syntax.log",
+      "method": "Automated static syntax execution"
+    },
+    {
+      "test_case_id": "STATIC-003",
+      "module": "Routing integration",
+      "input_values": "Parse app/routes.php and controller function declarations",
+      "expected_output": "Every declared route resolves to a controller handler",
+      "actual_output": "177 routes, 175 unique handlers, 0 missing handlers",
+      "result": "Pass",
+      "evidence": "storage/chapter6-evidence-20261011/route-handler-scan.log",
+      "method": "Automated static code inspection"
+    },
+    {
+      "test_case_id": "DB-001",
+      "module": "Database structure",
+      "input_values": "Isolated schema after all lazy schema initializers ran",
+      "expected_output": "Schema installed with relational constraints and fictional users only",
+      "actual_output": "55 tables; 68 foreign keys; 5 users; 3 fictional 20269900x users",
+      "result": "Pass",
+      "evidence": "storage/chapter6-evidence-20261011/schema-verification.log",
+      "method": "Automated information_schema inspection"
+    },
+    {
+      "test_case_id": "BROWSER-001",
+      "module": "Browser compatibility",
+      "input_values": "Chrome headless, GET /login, 1440x1000 viewport",
+      "expected_output": "Login page renders and a non-empty screenshot is produced",
+      "actual_output": "Screenshot generated; 445865 bytes; SHA-256 578732C64258B81BD6117ADE6D54A6DFA699421297BF48D0C691BAB43EBE6ECC",
+      "result": "Pass",
+      "evidence": "storage/chapter6-evidence-20261011/chrome-login.png",
+      "method": "Automated browser smoke execution plus visual artifact"
+    },
+    {
+      "test_case_id": "BROWSER-002",
+      "module": "Browser compatibility",
+      "input_values": "Microsoft Edge headless, GET /login, 1440x1000 viewport",
+      "expected_output": "Login page renders and a non-empty screenshot is produced",
+      "actual_output": "Screenshot generated; 404738 bytes; SHA-256 B7050ECAB72A77AD5B67AC9EABB5A353F94AA00FB60285C74E51C65E7486D4D5",
+      "result": "Pass",
+      "evidence": "storage/chapter6-evidence-20261011/edge-login.png",
+      "method": "Automated browser smoke execution plus visual artifact"
+    },
+    {
+      "test_case_id": "SEC-007",
+      "module": "Private messaging attachment authorization",
+      "input_values": "Unauthenticated GET of the randomized URL stored in messages.attachment_path",
+      "expected_output": "HTTP 401/403 or authenticated ownership check; private attachment content must not be returned",
+      "actual_output": "HTTP 200, Content-Type text/plain; fictional attachment body returned",
+      "result": "Fail",
+      "evidence": "storage/chapter6-evidence-20261011/unauthenticated-message-attachment.log",
+      "method": "Automated unauthenticated HTTP security test"
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "id": "VULN-001",
+      "severity": "High",
+      "status": "Confirmed by execution",
+      "title": "Private message attachments are accessible without authentication",
+      "evidence": "PATH=/uploads/messages/20261011-783b9b6608b97051c19ee752.txt\nHTTP_STATUS=200\nCONTENT_TYPE=text/plain; charset=UTF-8\nBODY=Fictional Chapter 6 attachment evidence.",
+      "impact": "Anyone who learns or receives the randomized URL can download a file from a supposedly private conversation. Random names reduce guessing but are not authorization.",
+      "recommendation": "Store message files outside public/, expose a download controller that requires login and verifies sender/receiver ownership, set Content-Disposition and nosniff, and migrate existing attachments."
+    },
+    {
+      "id": "VULN-002",
+      "severity": "Medium",
+      "status": "Static inspection",
+      "title": "No Content-Security-Policy header is set",
+      "evidence": "public/index.php:5-6 sets nosniff and SAMEORIGIN, but no Content-Security-Policy header was found.",
+      "impact": "Existing output escaping passed, but a future injection defect would have fewer browser-side containment controls.",
+      "recommendation": "Deploy a nonce- or hash-based CSP after inventorying inline scripts/styles; start with Report-Only."
+    },
+    {
+      "id": "VULN-003",
+      "severity": "Deployment limitation",
+      "status": "Static inspection",
+      "title": "HSTS is not configured in application code",
+      "evidence": "No Strict-Transport-Security header was found. Local tests used HTTP by design.",
+      "impact": "A production deployment must rely on the reverse proxy/web server for HTTPS enforcement and HSTS.",
+      "recommendation": "At the production proxy, redirect HTTP to HTTPS and enable HSTS only after HTTPS is correct for all subdomains."
+    }
+  ],
+  "limitations": [
+    "The HTTP tests ran on PHP 8.1.25's built-in development server and a local MySQL database; PERF-001 is a safe response-time sample, not a production capacity or concurrent load test.",
+    "Google OAuth, SMTP delivery, Stripe test mode, Firefox, mobile viewports, and controlled concurrency were not executed. They remain in the proposed table.",
+    "All AI provider credentials were blank. AI-002 tested MANBAR's deterministic local rules fallback, not Gemini/Groq/OpenAI quality or availability.",
+    "PAY-001 used MANBAR's internal demonstration-payment flow. No payment network was contacted and no real money moved.",
+    "Chrome and Edge checks verified public login rendering and retained screenshots; authenticated cross-browser workflows were not automated.",
+    "A 25 MB course-material upload boundary was verified by code inspection but was not uploaded during this run to avoid unnecessary disk consumption; it is explicitly proposed below."
+  ],
+  "proposed_tests": [
+    {
+      "test_case_id": "PROP-GOOGLE-001",
+      "module": "Google authentication",
+      "input_values": "Sandbox Google OAuth client and fictional managed-domain account",
+      "expected_output": "Valid ID token with matching audience, issuer, nonce and verified AAU email creates/signs in user; altered token is rejected",
+      "verification_procedure": "Configure a dedicated OAuth test client on a non-production callback, use an authorized fictional account, capture HTTP status/JSON, and confirm only the test DB changes.",
+      "reason_not_executed": "Google client ID was intentionally blank to prevent external authentication and no managed fictional Google account was supplied."
+    },
+    {
+      "test_case_id": "PROP-STRIPE-001",
+      "module": "Stripe course payment",
+      "input_values": "Stripe test key, AED 2 course, Stripe test card 4242 4242 4242 4242",
+      "expected_output": "Stripe test Checkout session created; signed test webhook marks payment paid and enrolls fictional student; invalid signature rejected",
+      "verification_procedure": "Use Stripe CLI/test mode only, point webhook to isolated server, verify course_payments and enrollments, then discard test records.",
+      "reason_not_executed": "All payment credentials were blank; only MANBAR's internal demonstration payment path was executed."
+    },
+    {
+      "test_case_id": "PROP-SMTP-001",
+      "module": "SMTP delivery",
+      "input_values": "Sandbox mailbox and fictional recipient controlled by tester",
+      "expected_output": "Message accepted by sandbox SMTP and no real university address contacted",
+      "verification_procedure": "Use Mailpit/MailHog locally, configure sandbox host/from, request code, inspect captured message and database event.",
+      "reason_not_executed": "SMTP was intentionally disabled; the code was written to the sandbox mail.log instead."
+    },
+    {
+      "test_case_id": "PROP-BROWSER-001",
+      "module": "Browser compatibility",
+      "input_values": "Latest Chrome, Edge and Firefox at 1440x900 and 390x844",
+      "expected_output": "Login, feed, project, marketplace, course, quiz and messages render without clipping and core actions remain usable",
+      "verification_procedure": "Run Playwright against the isolated server using seeded sessions; retain full-page screenshots and accessibility snapshots for each viewport/browser.",
+      "reason_not_executed": "Cross-browser authenticated automation is not configured in the repository; public-page Chromium/Edge smoke checks are handled separately if installed."
+    },
+    {
+      "test_case_id": "PROP-CONC-001",
+      "module": "Concurrency",
+      "input_values": "Two owners accept final project slot simultaneously; two live-answer submissions simultaneously",
+      "expected_output": "Only capacity-safe membership/one live answer persists",
+      "verification_procedure": "Use parallel HTTP clients and transaction-aware assertions on a disposable clone of the isolated database.",
+      "reason_not_executed": "A controlled concurrency harness was not available; sequential duplicate protections were tested instead."
+    },
+    {
+      "test_case_id": "PROP-FILE-001",
+      "module": "Course/service material upload",
+      "input_values": "Valid allowlisted file at exactly 26,214,400 bytes and another at 26,214,401 bytes; mismatched extension/MIME pair",
+      "expected_output": "Exact 25 MB file is stored outside public root; 25 MB + 1 and MIME mismatch are rejected with no database row/file residue",
+      "verification_procedure": "On a disposable clone, POST multipart files to the authenticated course/material and service portfolio endpoints; inspect HTTP messages, material/service_files rows, and storage/course_files or storage/service_files.",
+      "reason_not_executed": "The 25 MB rule was confirmed statically; large binary boundary execution was omitted to keep the evidence run lightweight."
+    },
+    {
+      "test_case_id": "PROP-VOICE-001",
+      "module": "Voice messages",
+      "input_values": "Browser microphone permission granted; 3-second WebM/Opus recording and denied-permission scenario",
+      "expected_output": "Recorded audio posts once, recipient can play it without refresh, and denied permission shows a usable error without creating a message",
+      "verification_procedure": "Use authenticated Playwright contexts with a synthetic media stream and permissions; verify messages row, MIME/size, polling response and audio playback controls.",
+      "reason_not_executed": "Headless public-page smoke testing did not include authenticated microphone/media permission automation."
+    }
+  ],
+  "evidence_directory": "C:\\xampp\\htdocs\\manbar\\storage\\chapter6-evidence-20261011"
+}

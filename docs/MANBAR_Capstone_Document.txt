@@ -1,0 +1,545 @@
+MANBAR (منبر) - THE STUDENT PLATFORM
+Technical and Feature Documentation for the Capstone Report
+
+Al Ain University (AAU) - College of Engineering - Capstone Project
+Team: Yaman AlNasri, Tamim Alzein, Ghaith Alsalim, Muhammad Toufeeq, Rami Albaini
+Document version: October 2026 (describes the code as it is in the project folder)
+
+
+================================================================
+1. PROJECT OVERVIEW
+================================================================
+
+1.1 What MANBAR is
+MANBAR (Arabic "منبر", meaning "the stage" or "the pulpit") is a campus-only web platform where a student's idea can grow into a post, a project team, a paid or free service, a course, or a portfolio entry. It starts at Al Ain University and is designed to add more universities (for example Abu Dhabi University and UAE University) and later open to the public.
+
+1.2 The problem it solves
+Students today use many separate apps: LinkedIn for profiles, Fiverr for services, Discord or WhatsApp for teams, and Moodle for courses. None of them are limited to verified students of one university, and none connect an idea to a team, a service and a course. MANBAR puts these pieces in one place behind a university-only sign-in, so everyone on the platform is a verified student or teacher.
+
+1.3 Main goals
+- Give every student a stage to share ideas and get feedback.
+- Help students form project teams with the right skills and finish real projects.
+- Let students earn money or help each other through a safe student marketplace.
+- Let teachers and top students teach through step-by-step courses with quizzes and live games.
+- Reward real contribution with reputation XP, ranks, badges, vouches and a trust score.
+- Give administrators full control: moderation, bans, scam cases, roster and analytics.
+
+1.4 Users and roles
+| Role    | Who                                   | Extra abilities |
+| Student | Anyone signing in with a student-number university email | Post, join projects, buy/sell services, enroll in courses, request mentors. Students who reach the Gold rank (900 XP) can also create courses. |
+| Teacher | University staff (name.surname@ email) | Create courses, announcements and teaching offers, mentor profile. |
+| Admin   | Platform administrators               | Admin console: analytics, users, bans, XP and badges, roster, moderation, scam cases, universities, settings and audit log. |
+
+1.5 Scale of the project (measured from the code)
+| Item                                  | Count |
+| PHP files                              | 122 files, about 12,640 lines |
+| Page templates (views)                 | 87 templates (including 10 admin pages and 33 reusable partials) |
+| CSS stylesheets                        | 11 files, about 3,530 lines |
+| JavaScript files                       | 6 files, about 2,500 lines |
+| SQL (schema + demo data)               | about 880 lines |
+| URL routes (pages + actions + APIs)    | 177 routes (69 GET, 108 POST) |
+| Database tables                        | 55 tables |
+| Badges                                 | 24 badges |
+| Ranks                                  | 8 leagues x 3 stars = 24 rank steps |
+
+
+================================================================
+2. TECHNOLOGIES AND LANGUAGES USED
+================================================================
+
+2.1 Summary table
+| Layer            | Technology | Used for |
+| Server language  | PHP 8.1 (tested on PHP 8.1.25) | All server logic: routing, pages, database access, authentication, payments, AI calls, file uploads. Written with strict types and no framework. |
+| Database         | MySQL / MariaDB 10.4 (SQLite also supported for development) | Storing users, posts, projects, services, courses, quizzes, payments, notifications and more. |
+| Query language   | SQL | Tables, joins, aggregates (statistics, leaderboards, trust scores), prepared statements. |
+| Markup           | HTML5 | Page structure, forms, the <dialog> element for pop-up windows, semantic and accessible markup (ARIA labels, roles). |
+| Styling          | CSS3 | Whole visual design: CSS variables (design tokens), Grid and Flexbox layouts, gradients, color-mix(), conic gradients for progress rings, @property and keyframe animations, backdrop blur, media queries for mobile/tablet, dark mode, reduced-motion support. |
+| Client language  | JavaScript (vanilla ES6+, no framework) | Interactivity: live notifications pop-up, reactions, comments, drag-and-drop ordering, file drop zones, image viewer, checkout card preview and validation, live quiz screens, count-up numbers, 3D tilt hover effects, polling for live data. |
+| Graphics         | SVG | Logo, icons (one SVG sprite with 70+ icons), backgrounds, patterns, charts (line and donut charts are drawn as SVG by PHP, no chart library), demo cover art. |
+| Data formats     | JSON, CSV, DOCX, PDF | JSON for API responses and stored settings (service packages); CSV for roster import and user/student export; DOCX/TXT import for quiz questions; PDF/DOCX/images as course and portfolio files. |
+| Web server       | Apache (XAMPP) with mod_rewrite, or PHP's built-in server | Serving the site at http://localhost/manbar/public/ |
+| Fonts            | Google Fonts: Outfit (body text), Plus Jakarta Sans (headings), Cairo (Arabic) | Typography. |
+| Development tools| XAMPP, VS Code (PHP Intelephense), phpMyAdmin, Git and GitHub, curl (automated end-to-end tests), Claude browser pane / Chrome (visual checks) | Building, testing and version control. |
+
+2.2 Why no framework
+The team chose plain PHP with a small custom core (about 15 helper files) instead of Laravel or React. Reasons:
+- It runs on any shared host or XAMPP with no build step.
+- Every part of the code is understandable and explainable at the defense.
+- Pages load fast: no large JavaScript bundles; all assets are plain CSS/JS/SVG files.
+
+2.3 PHP techniques used
+- Front controller: every request goes through public/index.php.
+- Custom router: app/routes.php lists 177 routes as [METHOD, '/path/{param}', 'handler'] and the router converts them to regular expressions.
+- Controllers: one PHP file per module in app/controllers/ (feed, profile, projects, market, pay, learn, quiz, live, mentors, social, settings, admin, admin_tools, auth).
+- Views: PHP templates in app/views/ with a shared layout (layout.php), a public layout (layout_public.php), an admin layout (admin/layout.php) and reusable partials (post card, comments, service card, step bar, materials gallery, notifications list, scam report form and more).
+- Database helpers: qall(), qrow(), qval(), qexec(), insert(), update() wrap PDO prepared statements.
+- Self-updating schema: ensure_*_schema() functions add new tables and columns automatically the first time a feature is used, so the database upgrades itself without manual migrations.
+- Security helpers: e() for HTML escaping, CSRF tokens, password_hash(), finfo MIME checks.
+- Server-to-server HTTP calls (cURL / streams) to Google, Stripe and AI providers.
+- ZipArchive for reading Word (.docx) quiz files and generating demo documents.
+
+
+================================================================
+3. SYSTEM ARCHITECTURE
+================================================================
+
+3.1 Folder structure
+| Folder / file          | Contents |
+| public/index.php       | Front controller: starts the session, sets security headers, checks CSRF on every POST, matches the route and calls the handler. |
+| public/assets/css      | 11 stylesheets: app.css (core design), cinema.css and landing.css (public landing), feed.css, learn.css, market.css, projects.css, profile.css, notify.css (notifications, settings, scam form), sidebar.css, admin.css. |
+| public/assets/js       | 6 scripts: app.js (core interactions), cinema.js (landing animations), feed.js (home card effects), learn.js (courses, checkout, drag-and-drop), notify.js (notifications pop-up, settings), admin.js (admin tools). |
+| public/assets/img      | Logo, favicon, SVG icon sprite, backgrounds, rank emblems, campus photos. |
+| public/uploads         | Public uploads: avatars, profile covers, post photos, project/course/service covers. |
+| storage/               | Private files (served only to allowed users through PHP): course files, service portfolio files, project files, mail log. (Direct-message attachments are kept in public/uploads/messages with random file names.) |
+| app/                   | Core: bootstrap.php, helpers.php, db.php, auth.php, mail.php, gamify.php (XP, ranks, badges), learning.php (courses, path, files), ai.php (assistant), catalog.php (post types, categories), routes.php. |
+| app/controllers        | 14 controller files (one per module). |
+| app/views              | 87 page templates and partials. |
+| config/                | config.php (defaults, read from environment variables) and config.local.php (private keys, never committed). |
+| database/              | manbar.sql (full schema), install.php (installer with --demo option), demo.php (demo data), remove_course_demo.php and remove_profile_demo.php (remove demo data). |
+| docs/                  | Report figures (architecture, modules, context diagram, ER diagram, Google sign-in sequence) and this document. |
+
+3.2 Request flow
+1. The browser requests a URL, for example /marketplace/8.
+2. Apache sends it to public/index.php (mod_rewrite).
+3. index.php loads app/bootstrap.php (configuration, helpers, database, all controllers), starts a secure session and sets security headers.
+4. For POST requests the CSRF token is verified (from the form field or the X-CSRF-Token header).
+5. The router finds the matching route and calls the handler, for example page_service(8).
+6. The handler checks the login and permissions, reads the database and calls render('service', data).
+7. render() fills the view template and wraps it in the layout (sidebar, top bar, notifications, scripts).
+8. API routes (/api/...) return JSON instead of HTML for live features (reactions, comments, notifications, messages, AI assistant, live quiz state).
+
+3.3 Live features without WebSockets
+Live parts use short polling with fetch():
+- Unread counters for notifications and messages refresh every 45 seconds (/api/counts).
+- Direct messages and the typing indicator refresh every few seconds (/api/messages/{id}).
+- Live quizzes: players and host poll the game state (/live/{code}/state and /live/{code}/host/state).
+
+
+================================================================
+4. EXTERNAL SERVICES AND API KEYS
+================================================================
+
+All keys are stored only on the server in config/config.local.php or in environment variables. They are never sent to the browser, never written into JavaScript, and config.local.php is excluded from Git.
+
+| Service | What it does in MANBAR | Endpoint(s) used | Configuration key(s) | Status in the current build |
+| Google Identity Services (OAuth 2.0 / OpenID Connect) | "Continue with Google" and Google One Tap sign-in, limited to university email domains | accounts.google.com/gsi/client, accounts.google.com/o/oauth2/v2/auth, oauth2.googleapis.com/tokeninfo | GOOGLE_CLIENT_ID (no client secret needed) | Configured |
+| SMTP email (for example Gmail with an App Password) | Sends 6-digit sign-in codes and password-reset codes | SMTP server, port 587 (TLS) or 465 (SSL) | MANBAR_MAIL_HOST, _PORT, _SECURE, _USER, _PASS, _FROM | Configured |
+| Google Gemini API | Main AI engine of the MANBAR Assistant: grammar, spelling, tone rewriting, form drafting (projects, services, courses) | generativelanguage.googleapis.com/v1beta/models/{model}:generateContent | GEMINI_API_KEY, GEMINI_MODEL (default gemini-3.5-flash-lite) | Configured |
+| Groq API | Free-tier fallback AI engine when Gemini is not available | api.groq.com/openai/v1/chat/completions | GROQ_API_KEY, GROQ_MODEL (default openai/gpt-oss-120b) | Configured |
+| OpenAI API | Optional third AI engine | api.openai.com/v1/responses | OPENAI_API_KEY, OPENAI_MODEL | Supported, not configured |
+| Anthropic Claude API | Optional fourth AI engine | api.anthropic.com/v1/messages | ANTHROPIC_API_KEY, ANTHROPIC_MODEL | Supported, not configured |
+| Stripe Checkout | Real card payments for paid courses, with a webhook to confirm payment | api.stripe.com/v1/checkout/sessions; webhook at /stripe/webhook (event checkout.session.completed) | STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET | Supported, not configured (checkout runs in demo mode) |
+| YouTube and Vimeo embeds | Lesson videos play inside the course page | youtube-nocookie.com/embed, player.vimeo.com/video | none | Active |
+| Google Fonts | Outfit, Plus Jakarta Sans and Cairo fonts | fonts.googleapis.com, fonts.gstatic.com | none | Active |
+
+4.1 AI engine order and privacy
+The assistant tries the engines in this order: Gemini, then Groq, then OpenAI, then Claude, then MANBAR's own local PHP engine. Only text that the user explicitly sends with an assistant button goes to an AI provider. Checks while typing stay local. Database passwords and private records are never sent to a model. Searching MANBAR's own posts, projects, people, mentors, courses and services is done by the PHP backend, not by the AI. The assistant is limited to 30 requests per minute per user to prevent abuse.
+
+4.2 Payment providers shown in the checkout
+The checkout page shows Visa, Mastercard, American Express, Apple Pay, PayPal and tabby (pay in 4). Card payments for courses go through Stripe when a key is set. All other methods run in a clearly labelled demo mode until each provider is connected, so the full flow can be demonstrated without real money. Card numbers typed in demo mode never leave the browser.
+
+
+================================================================
+5. AUTHENTICATION, SIGN-IN AND ONBOARDING
+================================================================
+
+5.1 Sign-in methods
+- Continue with Google: the server verifies the Google ID token (audience, issuer, expiry, verified email) and uses a one-time state and nonce against replay attacks.
+- Google One Tap: the "Sign in with Google" bubble in Chrome.
+- University email code: the student types a student number (for example 202020280, and @aau.ac.ae is added automatically) or a full email. MANBAR emails a 6-digit code that is valid for 10 minutes and allows 5 tries. Only one new code per minute and at most 20 codes per network per hour can be sent. Codes are stored hashed.
+- Password: after the first code sign-in a user can set a password. "Forgot password?" sends a reset code.
+- Admin console login: a separate admin username and hashed password; 5 wrong passwords lock it for 15 minutes.
+
+5.2 University and roster matching
+- Only domains of active universities can sign in (Admin > Universities).
+- A student-number email is matched with the official roster, which pre-fills full name, major, faculty and year. These become a "student" account.
+- A name email (name.surname@aau.ac.ae) becomes a "teacher" account with a mentor profile.
+- Admins import the roster as a CSV file (student_id, full_name, major, faculty, year_level).
+
+5.3 Onboarding
+New users complete a short onboarding before using the site: they confirm their name, then add a headline, a short bio, faculty, year, skills, interests and a profile colour theme. A guided product tour explains the main areas, and it can be completed or skipped.
+
+5.4 Account bans
+Banned users are signed out on their next click. When they try to sign in, they see the reason and the end date of the ban. Timed bans (24 hours, 3, 7 or 30 days) lift automatically when they expire.
+
+
+================================================================
+6. FEATURES BY MODULE (PAGE BY PAGE)
+================================================================
+
+6.1 Public landing page ( / )
+- Cinematic design: opens deep black with vibrant lime and morphs into MANBAR's green campus world while scrolling, with an animated logo intro, floating leaves and letters, and device mock-ups.
+- Sections: "One idea, all the way through", "Eight modules. One campus account.", "Your university account is the key.", "Four apps' worth of campus, in one place.", "Your idea needs a stage."
+- Live counters read from the database (students and teachers, posts, projects, courses).
+
+6.2 Sign-in pages ( /login, /auth/... )
+Google sign-in, One Tap, email code, password, password set/reset and the admin login, with animated artwork.
+
+6.3 Home feed ( /feed )
+- Welcome banner with three rotating campus photos and a "Your progress" card: rank emblem inside a progress ring, rank name and stars, points, a progress bar, "XP to next rank", badge and post counts.
+- "Choose where you want to begin": six feature cards (Ask MANBAR AI, Projects, Marketplace, Learning center, Mentors, People). Each card has hover effects: a spotlight that follows the mouse, a glowing animated border, a light sweep, rising sparkles, a 3D tilt and floating artwork.
+- Community feed board: quick buttons to share an idea, ask a question, find teammates, share a resource or show work; monthly statistics; trending hashtags.
+- Post types: Idea, Question, Team request, Resource, Showcase (achievement), Event, plus Announcement and Teaching offer for teachers. Each type has its own colour band.
+- Post features:
+  - photos and hashtags;
+  - 5 reaction types (like, love, celebrate, insight, support);
+  - threaded comments with replies;
+  - share, save (bookmark), copy link and report;
+  - "Turn into a project" for ideas;
+  - pin to top (admins);
+  - edit and delete.
+- Composer with the MANBAR Assistant writing tools.
+- Sidebar widgets: trending hashtags, suggested people to follow, upcoming events and the top members by Rank XP.
+
+6.4 Post page ( /post/{id} ), Saved ( /saved ), Search ( /search )
+- A single post with all comments.
+- Saved posts list.
+- Global search across posts, people, projects, services and courses.
+
+6.5 Profiles ( /profile/{id}, /me, /profile/edit ) and People ( /people )
+- Cover image, avatar, headline, major, year, university and verified tick.
+- Rank emblem with visual effects, plus name styles and profile effects.
+- Statistics: followers and following (shown in a pop-up list), posts, projects, Rank XP and badges.
+- "About" card with a banner header, bio, and contact buttons in brand colours (LinkedIn, GitHub, Discord, WhatsApp, phone, website).
+- Skills and interests.
+- Tabs: Posts, Projects, Services, Badges, Recommendations, Courses.
+- Reputation card: league, stars, progress, trust %, badges and vouches.
+- Verified recommendations: a user can recommend another only after real work together (a finished order, a finished project or a mentoring session).
+- Follow, Message and "Report" (scam report) buttons.
+- People directory: search by name, headline or student number, and filter by role (student or teacher), major and skill.
+
+6.6 Projects ( /projects, /projects/new, /projects/{id} )
+- Board with statistics, a "Matches my skills" section, tabs (Everything, Open to join, In progress, Completed, My projects), search, skill filter and sorting.
+- Create a project from scratch or from an idea post, with a cover image.
+- Roles: the owner lists the roles needed (for example "Backend developer", 2 places) with skills. Students apply for a specific role, and the owner accepts or declines.
+- Team: members, task board (To do / Doing / Done), team chat, public updates.
+- Roadmap: milestones with due dates that members tick off.
+- Files: upload files and links. They are private to members until the project is completed, then public as proof of work.
+- Status: open, in progress, completed (with the outcome).
+- Vouches: teammates of a completed project rate each other (traits and comments). Each vouch gives Rank XP.
+
+6.7 Marketplace ( /marketplace, /marketplace/new, /marketplace/{id}, /marketplace/orders, /marketplace/earnings )
+- Two listing kinds: services ("I offer") and requests ("Looking for people", with a number of spots).
+- Categories: Design and Creative, Programming and Tech, Writing and Translation, Tutoring and Study help, Video Photo and Audio, Business and Marketing, Other.
+- Listing page details:
+  - one price, or Basic / Standard / Premium packages;
+  - delivery days, revisions and a "what you get" list;
+  - skills and a cover image;
+  - a portfolio of files, whole folders and links.
+- Trust score out of 100, calculated from real orders, on-time delivery, response time, reviews, repeat clients and teammate vouches. Response time and "member since" are also shown.
+- "Most trusted providers" ranking.
+- Person-to-person order flow:
+  1. The buyer sends a request, which opens a chat in Messages.
+  2. The seller sends an offer: price, delivery days, and when to pay (before the work, 50/50, after delivery, or cash).
+  3. The buyer accepts and pays if payment is due now. MANBAR holds online payments safely.
+  4. The seller marks the order as delivered.
+  5. The buyer confirms delivery and pays any remaining balance.
+  6. The money is released to the seller's wallet.
+  7. The buyer leaves a review.
+- An order tracker shows each step.
+- Wallet ( /marketplace/earnings ): available balance, money on hold, total earned, cash payments and payouts. Cash-out goes to a UAE IBAN or PayPal; only a masked account hint is stored.
+- Reviews and ratings (1 to 5 stars), with a rating distribution.
+- Admin "student view" and admin tools mode for managing any listing.
+
+6.8 Checkout ( /checkout/course/{id}, /checkout/order/{id} )
+- Secure checkout page with a live card preview and card validation: brand detection, Luhn check, expiry, CVC, and a "Use the test card" button.
+- Methods: card (Visa, Mastercard, Amex), Apple Pay, PayPal, and tabby (4 interest-free payments with a schedule).
+- Saved payment methods (from Settings > Billing) appear as one-tap options.
+- Order summary with the service fee (free for AAU students), the payment terms and buyer protection.
+- Admins and course hosts get a preview mode in which nothing is charged.
+
+6.9 Learning Center ( /learn, /learn/my, /learn/new, /learn/{id} )
+- Board with statistics, buttons (Browse courses, My courses, Quizzes and live, Create a course) and a "Most popular right now" strip.
+- Course catalog with categories, search, free and paid courses, and cover pictures.
+- Who can create courses: teachers, admins, and students who reached the Gold rank.
+- Course content:
+  - lessons (with YouTube, Vimeo or any video link);
+  - summaries (short key-point pages);
+  - quizzes;
+  - files (PDF, Word, PowerPoint, Excel, text, images, ZIP; up to 25 MB each, several at once);
+  - links.
+- How files are shown: images in a gallery with a full-screen viewer, PDFs previewed inside the page, and videos playing on the page.
+- Sequential course path:
+  - the host drags lessons, summaries and quizzes into any order;
+  - students press "Start course" and follow the steps one by one, and each step opens when the previous one is done;
+  - students can restart the path as many times as they like;
+  - a step bar shows progress.
+- Classmates panel: the other students enrolled in the course.
+- Host tools: add lesson, summary or quiz; reorder; cover picture; settings; give access; delete.
+- Host / student view switch, so the host can see the course as a student (joined or visitor).
+- My courses ( /learn/my ): courses joined (with progress) and courses hosted (with student numbers).
+- Paid courses (price in AED) with automatic pay-to-view: payment opens the course immediately.
+- Course dashboard ( /learn/{id}/dashboard ) for the host:
+  - students, visits over 14 days and lesson progress;
+  - quiz averages, pass rates and the hardest questions;
+  - essays waiting for marking and live-session history;
+  - payments, settings and CSV export.
+
+6.10 Quizzes ( /learn/{cid}/quiz/... , /quiz/attempt/... )
+- Question types: multiple choice and essay, with points, explanations, a time limit, a pass mark, an attempts limit and shuffling.
+- Bulk import: paste text or upload a .docx / .txt file in a simple format (numbered questions, A)/B) options, * or "Answer:" to mark the right one, "Essay:" with "Keywords:"). A preview is shown before saving.
+- Taking a quiz:
+  - one question per screen;
+  - answers save automatically;
+  - a countdown submits automatically at zero;
+  - multiple-choice questions are marked instantly;
+  - essays with keywords are auto-marked, and other essays are marked by the host with feedback.
+- Results page with the score, correct answers and the next step of the course.
+
+6.11 Live quiz games ( /live, /live/{code}, /live/{code}/host )
+- Kahoot-style live games:
+  - the host starts a live quiz and shows a 6-digit code;
+  - students join at /live;
+  - everyone answers the same question at the same time;
+  - a correct answer earns 500 points plus up to 500 more for speed;
+  - the host sees a live leaderboard and a final podium.
+- Quizzes hub ( /live ): open live games to join with one tap, all quizzes from joined or hosted courses grouped by course, recent attempts and scores, and statistics (quizzes available, taken, average, live now).
+
+6.12 Mentorship ( /mentors, /mentors/{id}, /mentorship )
+Mentor directory (teachers and experienced members), mentor profiles with expertise, mentoring requests, accept or decline, session scheduling, completion and feedback.
+
+6.13 Direct messages ( /messages, /messages/{id} )
+- One-to-one conversations with a conversation list and unread counts.
+- Live updates and a "typing..." indicator.
+- Attachments: images and files up to 12 MB, with a preview before sending.
+- Emoji panel.
+- Automatic order lines from the marketplace, so the deal history sits next to the chat.
+
+6.14 Notifications ( bell pop-up, /notifications )
+- Clicking the bell opens a centred pop-up window over a blurred background. It contains:
+  - a header with the number of new notifications and "Mark all read";
+  - All / New tabs;
+  - notifications grouped by day (Today, Yesterday, This week, Earlier), each with a coloured icon for its category and an unread dot;
+  - "View all notifications" and a settings button.
+- Clicking a notification marks it as read and opens the related page.
+- Full notifications page: a banner with the number of new notifications, and filter chips by category (All, New, Social, Messages, Projects, Marketplace, Learning, Mentorship, Badges).
+- Categories can be turned off in Settings. A muted category is not delivered at all.
+
+6.15 Settings ( /settings )
+- Account: profile summary, university email, student ID, account type, member since, edit profile, sign out.
+- Notifications: an on/off switch for each of the 7 categories.
+- Billing and payments:
+  - wallet balance;
+  - saved payment methods shown as realistic Visa, Mastercard, Amex, PayPal and tabby cards, with make-default and remove;
+  - adding a card with a live preview and validation;
+  - connecting PayPal (by email) or tabby (by UAE mobile number);
+  - billing history of course and order payments.
+  - Only the brand, the last 4 digits, the expiry and a masked hint are stored, never full card numbers or CVCs.
+- Appearance: Light or Dark theme, and the full or icons-only sidebar.
+
+6.16 Achievements and reputation ( /achievements )
+- Rank XP formula = activity points + reactions received x 2 + comment reactions + marketplace review XP (5 stars = 100, 4 = 70, 3 = 35, 2 = 10) + project vouch XP + recommendation XP (rating x 12) + finished work (service 20, project 30, mentoring session 20).
+- 8 leagues: Bronze (0), Silver (450), Gold (900), Platinum (1350), Diamond (1800), Legend (2250), Master (2700), Celestial (3150). Each league has 3 stars of 150 XP each, so there are 24 rank steps.
+- Rank emblems with animated effects in the sidebar, on profiles and on the home page.
+- 24 badges: Profile Pro, First Voice, Idea Machine, Conversationalist, Team Player, Project Leader, Service Pro, Five Star, Curious Mind, Graduate, Mentee, Rising Star, Centurion, Mission Complete, Community Hero, Knowledge Seeker, Guided Growth, Campus Connector, Gold League, Platinum League, Diamond League, Living Legend, MANBAR Master, Celestial.
+- Trust percentage from the average of reviews, recommendations and vouches.
+- Leaderboard and a rank-aware feed.
+
+6.17 MANBAR Assistant (AI) ( /api/ai/assist, /api/ai/guide )
+- Writing help on every writing surface: posts, comments and replies, projects, marketplace listings, courses and lessons, mentorship, profiles and messages.
+- Grammar, spelling and vocabulary correction. Tones: natural, professional, academic, friendly and concise.
+- A review card shows the polished text, the important before-to-after changes with short reasons, the engine used, and Apply / Keep buttons.
+- Form drafting: generates a first draft of a project, service or course from a title.
+- Smart routing: understands intent (for example "I'm good at frontend development" or "I want to help") and recommends ranked direct links to matching posts, open projects, people, mentors, courses and services, with honest "fit" labels.
+- Page-aware guide ("Ask MANBAR AI").
+- Works without any key through the local engine, and better with Gemini or Groq.
+
+6.18 Admin console ( /admin ... )
+- Dashboard ( /admin ):
+  - welcome banner with a member search;
+  - "Needs attention" panel: open scam cases, content reports, banned accounts, and money held in open orders;
+  - statistics cards (users, students, posts, reactions, projects, services, courses, mentorships);
+  - quick tools;
+  - an activity chart for the last 14 days and posts by type (SVG charts);
+  - students by faculty, newest members and the top members by Rank XP;
+  - recent moderation actions and open reports.
+- Users ( /admin/users ): search, filter by role and status, CSV export, verify, roles, lift bans, and a "Manage" button for each user.
+- User control panel ( /admin/users/{id} ):
+  - profile header and statistics;
+  - ban with a reason and a length (24 hours, 3, 7 or 30 days, or permanently), or lift a ban;
+  - send warnings (with ready-made messages);
+  - change Rank XP: add, remove, or set an exact rank, with a live preview and an optional notification;
+  - give or take any of the 24 badges;
+  - hide, restore or delete the user's posts with a reason sent to the author;
+  - change role and the verified tick;
+  - see reports about the user and a moderation history timeline;
+  - delete the account.
+- Scam cases ( /admin/cases/{id} ):
+  - the report details;
+  - the reporter and the accused;
+  - the linked order and its payments (held, released or refunded);
+  - the accused's history and listings;
+  - a risk score;
+  - one decision: Not a scam, Warn the seller, Warn and hide their listings, or Ban the seller, with an option to refund held money to the buyer.
+  - Both parties are notified of the outcome.
+- Moderation ( /admin/moderation ): tabs for Scam cases, Content reports (hide, delete or dismiss, with a reason sent to the author) and All posts (search, filter, hide, restore, delete).
+- Student roster ( /admin/roster ): add students, import a CSV, delete.
+- Content ( /admin/content ): projects, services and courses, with publish and hide controls.
+- Universities ( /admin/universities ): add universities and enable or disable sign-in per email domain.
+- Settings and audit ( /admin/settings ): site notice, platform settings, and an audit log of every admin action.
+- The admin sidebar supports the full and the icons-only modes.
+
+6.19 Reporting and safety for members
+- "Report" on posts, comments, projects and services. Reasons: spam, scam or fraud, harassment, inappropriate content, misinformation, cheating, other.
+- "Report a scam" form on marketplace listings and profiles. The member chooses what happened (for example "Took my money and didn't deliver" or "Asked me to pay outside MANBAR"), links the order, enters the amount lost and describes the details. Money on hold stays frozen during the review.
+
+
+================================================================
+7. PAGE AND ROUTE REFERENCE
+================================================================
+
+| URL | Page / action | Main features |
+| / | Landing | Cinematic public page, live counters |
+| /login, /auth/... | Sign-in | Google, One Tap, email code, password, admin login |
+| /onboarding | Onboarding | Name, headline, bio, faculty, year, skills, interests, theme |
+| /feed | Home | Hero, progress card, feature cards, community board, feed |
+| /post/{id} | Post | Single post, comments, reactions |
+| /search | Search | Posts, people, projects, services, courses |
+| /saved | Saved | Bookmarked posts |
+| /profile/{id}, /me | Profile | Portfolio, stats, tabs, follow, message, report |
+| /profile/edit | Edit profile | Photo, cover, bio, links, skills, styles |
+| /people | People | Member directory |
+| /projects | Projects board | Stats, matches, tabs, filters |
+| /projects/new | New project | Create, cover, from an idea |
+| /projects/{id} | Project | Roles, apply, team, tasks, roadmap, files, chat, vouches |
+| /marketplace | Marketplace | Listings, trusted providers, filters |
+| /marketplace/new, /{id}/edit | Listing editor | Packages, cover, portfolio upload |
+| /marketplace/{id} | Listing | Details, packages, portfolio, trust, request, offers, scam report |
+| /marketplace/orders | My orders | Buying, selling, my listings |
+| /marketplace/earnings | Wallet | Balance, transactions, payouts |
+| /checkout/{type}/{id} | Checkout | Card, Apple Pay, PayPal, tabby, saved methods |
+| /learn | Learning center | Board, popular, catalog |
+| /learn/my | My courses | Joined and hosted courses |
+| /learn/new | New course | Create a course |
+| /learn/{id} | Course | Path, lessons, summaries, quizzes, files, classmates, host tools |
+| /learn/{id}/dashboard | Course dashboard | Analytics, marking, payments, CSV |
+| /learn/{cid}/quiz/{qid} | Quiz | Start, edit, import, results, live |
+| /quiz/attempt/{aid} | Take quiz | Timer, autosave, result, grading |
+| /live, /live/{code}, /live/{code}/host | Live games | Join, play, host leaderboard |
+| /mentors, /mentors/{id}, /mentorship | Mentorship | Directory, requests, sessions |
+| /messages, /messages/{id} | Messages | Chat, typing, attachments, emoji |
+| /notifications | Notifications | Filters, day groups |
+| /settings | Settings | Account, notifications, billing, appearance |
+| /achievements | Achievements | Ranks, badges, progress, leaderboard |
+| /admin | Admin dashboard | Analytics, needs attention, tools |
+| /admin/users, /admin/users/{id} | Users and control panel | Ban, warn, XP, badges, posts |
+| /admin/cases/{id} | Scam case | Evidence, refund, decision |
+| /admin/moderation | Moderation | Scam cases, content reports, all posts |
+| /admin/roster | Roster | CSV import |
+| /admin/content | Content | Projects, services, courses |
+| /admin/universities | Universities | Allowed domains |
+| /admin/settings | Settings and audit | Notice, audit log |
+
+JSON APIs used by the pages: /api/react, /api/comment, /api/comment/delete, /api/bookmark, /api/share, /api/report, /api/follow, /api/counts, /api/notifications, /api/messages/{id}, /api/ai/assist, /api/ai/guide, /api/tour/complete, /live/{code}/state, /live/{code}/answer, /live/{code}/host/state, /stripe/webhook.
+
+
+================================================================
+8. DATABASE DESIGN (55 TABLES)
+================================================================
+
+| Area | Tables | Purpose |
+| Users and access | users, universities, roster, auth_events, login_codes, user_skills, user_prefs, follows | Accounts, allowed universities, official student list, sign-in security events, email codes, skills, settings preferences, followers |
+| Feed | posts, comments, reactions, bookmarks, reports | Posts, threaded comments, 5 reaction types, saved posts, member reports (with a scam category, details, order, amount, outcome) |
+| Projects | projects, project_members, project_applications, project_roles, project_tasks, project_messages, project_milestones, project_files, project_vouches | Projects, teams, applications per role, task board, team chat and updates, roadmap, files, teammate vouches |
+| Marketplace and payments | services, service_requests, service_reviews, service_files, market_payments, market_payouts, billing_methods | Listings with packages, orders with offers and terms, reviews, portfolio files, held/released/refunded payments, cash-outs, saved payment methods (masked) |
+| Learning | courses, lessons, enrollments, lesson_progress, course_materials, course_payments, course_visits | Courses with covers and prices, lessons and summaries, enrollments with path step and runs, progress, files and links, payments, visits |
+| Quizzes and live games | quizzes, quiz_questions, quiz_attempts, quiz_answers, live_sessions, live_players, live_answers | Quizzes, questions, attempts, answers, live game sessions, players, live answers |
+| Mentorship | mentor_profiles, mentorship_requests | Mentor profiles and requests, sessions and feedback |
+| Messages and notifications | messages, message_typing, notifications | Direct messages with attachments, typing indicator, notifications |
+| Gamification | badges, user_badges, point_log, recommendations | Badge catalogue, earned badges, every XP change (including admin changes), verified recommendations |
+| Administration | settings, audit_log, mod_actions | Platform settings, global audit log, per-user moderation history |
+
+Design notes:
+- Foreign-key style relations link users to posts, projects, services, courses and orders. The ER diagram is in docs/figures/figure-21-er-diagram.png.
+- Money is stored as whole AED amounts. Payment rows keep a status (held, released, cash, refunded) and a receipt reference (MB-XXXXXXXX).
+- The schema updates itself: when a feature needs a new column (for example courses.cover_image or users.banned_until), the ensure_*_schema() function adds it automatically.
+
+
+================================================================
+9. SECURITY AND PRIVACY
+================================================================
+
+- University-only access: only active university email domains can sign in. Students are matched with the official roster.
+- Google tokens are verified on the server: audience, issuer, expiry, verified email, one-time state and nonce.
+- Email codes are hashed, expire after 10 minutes, allow 5 tries, and are rate-limited per email and per network. Passwords use PHP password_hash() (bcrypt).
+- CSRF protection: every POST request needs a valid token (form field or X-CSRF-Token header). The only exceptions are Google and the Stripe webhook, which use their own signature checks.
+- SQL injection protection: all queries use PDO prepared statements with parameters.
+- XSS protection: all output is escaped with e() (htmlspecialchars).
+- Security headers: X-Content-Type-Options: nosniff and X-Frame-Options: SAMEORIGIN.
+- Upload safety:
+  - the real file type is checked with finfo (MIME sniffing), with allow-lists and size limits;
+  - random file names are used;
+  - private files (course files, portfolios, project files) are stored in storage/, outside the public folder, and served by PHP only to allowed users (for example enrolled students or project members). Direct-message attachments are stored in public/uploads/messages with long random file names, so anyone with the exact link can open them; moving them to storage/ is listed as future work.
+- Payments: card numbers and CVCs never reach the server in demo mode. Saved methods keep only the brand, the last 4 digits, the expiry and a masked hint. Payouts keep only a masked IBAN or PayPal hint.
+- Permissions: each action checks the role and ownership (owner, member, host, admin). Admins cannot ban or demote themselves.
+- Moderation: reports, scam cases, bans with reasons and lengths, and an audit log plus a per-user history of every admin action.
+- AI privacy: API keys stay on the server, and only text explicitly sent by the user goes to a provider. The assistant is rate-limited.
+- Configuration: secrets live in config/config.local.php or environment variables, never in Git. In production, error display is off, and the demo login and on-screen codes are disabled.
+
+
+================================================================
+10. USER INTERFACE AND DESIGN
+================================================================
+
+- Brand: MANBAR / منبر, with English UI and the Arabic name shown alongside. The logo is a green rounded tile with a white "M", a two-leaf sprout, a microphone and a stage bar.
+- Colours: a green theme (leaf green, deep teal, canopy green) with lime accents. Each module has its own colour:
+  - Projects: violet and peach;
+  - Marketplace: green and lime;
+  - Learning Center: teal and cyan;
+  - Notifications and Settings: green;
+  - Scam: red.
+- Fonts: Outfit, Plus Jakarta Sans and Cairo.
+- Layout: a sticky left sidebar (full or icons-only, remembered per browser) with a collapse button on its edge and a compact rank card. The top bar has search, a "New post" button, the theme toggle, messages, the notifications bell and the account menu. Phones get a bottom navigation bar.
+- Hero boards on every module, with glass buttons and colour-coded statistic tiles whose numbers count up.
+- Pop-up windows use the native HTML <dialog> element: followers and following, notifications, scam reports.
+- Dark mode across the site.
+- Responsive design for desktop, tablet and phone.
+- Accessibility: keyboard focus styles, ARIA labels, a reduced-motion mode that turns animations off, and good colour contrast.
+- Motion: cinematic landing, logo drawing animation, rank emblem effects, hover effects on the home cards, count-up numbers, smooth pop-ups.
+
+
+================================================================
+11. TESTING AND QUALITY
+================================================================
+
+- End-to-end tests with curl sessions for each major flow. Test data was rolled back after each run. The flows tested:
+  - sign-in;
+  - posting and reacting;
+  - project roles, milestones and file permissions;
+  - marketplace orders and payments (pay before, 50/50, after delivery, cash) and payouts;
+  - course path, uploads and quizzes;
+  - notification settings, saved payment methods and checkout;
+  - admin bans, Rank XP, badges and scam cases with refunds.
+- Permission tests: non-members, non-owners and non-admins are refused (HTTP 403 or 404).
+- PHP lint (php -l) on every changed file, and checks that pages return HTTP 200 with no PHP warnings.
+- Visual checks in a browser at desktop, tablet and phone sizes, in light and dark mode.
+- Demo data: database/install.php --demo creates sample students, teachers, posts, projects, services, courses, quizzes and orders. The scripts remove_course_demo.php and remove_profile_demo.php remove demo data again.
+
+
+================================================================
+12. INSTALLATION AND DEPLOYMENT
+================================================================
+
+Local:
+1. Install XAMPP (PHP 8.1 or newer) and start Apache and MySQL.
+2. Put the project in C:\xampp\htdocs\manbar.
+3. Import database/manbar.sql in phpMyAdmin, or run: php database/install.php --demo
+4. Open http://localhost/manbar/public/
+
+Server:
+- Requirements: PHP 8.1+, MySQL/MariaDB, Apache with mod_rewrite (or Nginx), and HTTPS.
+- Set the document root to public/.
+- Create config/config.local.php with the database, mail, Google, AI and Stripe settings. Set env = production and keep dev_login off.
+- Make public/uploads/ and storage/ writable by PHP.
+
+
+================================================================
+13. LIMITATIONS AND FUTURE WORK
+================================================================
+
+- Payments: PayPal, Apple Pay and tabby run in demo mode, and Stripe for courses needs a live key. Next step: connect each provider's real API and real payouts.
+- Real-time: live features use polling. WebSockets would make chat and live quizzes instant.
+- Mobile: the site is responsive. A native or installable (PWA) app could add push notifications.
+- Universities: add ADU, UAEU and others from Admin > Universities, then open MANBAR to the public.
+- AI: add more languages (full Arabic support) and smarter recommendations based on activity.
+- Email notifications and weekly digests (notifications are in-app today).

@@ -8,6 +8,7 @@ function current_user(bool $refresh = false): ?array
     $u = null;
     if (!empty($_SESSION['uid'])) {
         $u = qrow('SELECT u.*, un.short_name AS uni_short, un.name AS uni_name FROM users u JOIN universities un ON un.id = u.university_id WHERE u.id = ?', [$_SESSION['uid']]);
+        if ($u && $u['status'] !== 'active' && function_exists('ban_lift_if_expired') && ban_lift_if_expired($u)) $u['status'] = 'active';   // a timed ban ran out
         if (!$u || $u['status'] !== 'active') { $u = null; unset($_SESSION['uid']); }
     }
     return $u;
@@ -198,7 +199,7 @@ function password_sign_in(string $email, string $password): array
         auth_event($email, 'pw_fail');
         throw new RuntimeException('That password isn’t right.');
     }
-    if ($u['status'] !== 'active') throw new RuntimeException('This account is suspended. Contact the MANBAR administrators.');
+    if ($u['status'] !== 'active' && !(function_exists('ban_lift_if_expired') && ban_lift_if_expired($u))) throw new RuntimeException(function_exists('ban_message') ? ban_message($u) : 'This account is suspended. Contact the MANBAR administrators.');
     if (password_needs_rehash($u['password_hash'], PASSWORD_DEFAULT)) update('users', ['password_hash' => password_hash($password, PASSWORD_DEFAULT)], 'id = ?', [$u['id']]);
     login_user((int) $u['id']);
     return $u;
@@ -250,7 +251,7 @@ function sign_in_with_email(string $email, string $name, ?string $picture = null
 
     $user = qrow('SELECT * FROM users WHERE email = ?', [$email]);
     if ($user) {
-        if ($user['status'] !== 'active') throw new RuntimeException('This account is suspended. Contact the MANBAR administrators.');
+        if ($user['status'] !== 'active' && !(function_exists('ban_lift_if_expired') && ban_lift_if_expired($user))) throw new RuntimeException(function_exists('ban_message') ? ban_message($user) : 'This account is suspended. Contact the MANBAR administrators.');
         $upd = [];
         if ($sub && !$user['google_sub']) $upd['google_sub'] = $sub;
         if ($picture && !$user['avatar_url']) $upd['avatar_url'] = $picture;

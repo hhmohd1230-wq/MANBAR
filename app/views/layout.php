@@ -15,26 +15,28 @@ $title = $title ?? 'MANBAR';
 <head>
 <?php partial('head') ?>
 <title><?= e($title) ?> · MANBAR</title>
+<link rel="stylesheet" href="<?= e(asset('css/sidebar.css')) ?>">
+<link rel="stylesheet" href="<?= e(asset('css/notify.css')) ?>">
 </head>
 <body class="app">
 <?php if ($n = setting('site_notice')): ?><div class="notice-bar"><?= e($n) ?></div><?php endif ?>
 <div class="shell">
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="<?= e(url('feed')) ?>"><img src="<?= e(asset('img/logo.svg')) ?>" alt=""><span>MAN<b>BAR</b><small>منبر · <?= e($me['uni_short']) ?> students</small></span></a>
-    <button class="icon-btn sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Hide sidebar" title="Hide sidebar"><?= icon('panel-left-close', 19) ?></button>
+    <a class="brand" href="<?= e(url('feed')) ?>" aria-label="MANBAR home"><img src="<?= e(asset('img/logo.svg')) ?>" alt=""><span class="brand-copy">MAN<b>BAR</b><small>منبر · <?= e($me['uni_short']) ?> students</small></span></a>
     <nav class="nav">
-      <a class="<?= trim(nav_on('/feed', '/post')) ?>" href="<?= e(url('feed')) ?>"><?= icon('home') ?> Home feed</a>
-      <a class="<?= trim(nav_on('/projects')) ?>" href="<?= e(url('projects')) ?>"><?= icon('rocket') ?> Projects</a>
-      <a class="<?= trim(nav_on('/marketplace')) ?>" href="<?= e(url('marketplace')) ?>"><?= icon('store') ?> Marketplace</a>
-      <a class="<?= trim(nav_on('/learn')) ?>" href="<?= e(url('learn')) ?>"><?= icon('book') ?> Learning center</a>
-      <a class="<?= trim(nav_on('/mentors', '/mentorship')) ?>" href="<?= e(url('mentors')) ?>"><?= icon('compass') ?> Mentors <?php if ($pendingMentor): ?><span class="count"><?= $pendingMentor ?></span><?php endif ?></a>
-      <a class="<?= trim(nav_on('/people')) ?>" href="<?= e(url('people')) ?>"><?= icon('users') ?> People</a>
+      <a class="<?= trim(nav_on('/feed', '/post')) ?>" href="<?= e(url('feed')) ?>" title="Home feed" aria-label="Home feed"><?= icon('home') ?><span class="nav-text">Home feed</span></a>
+      <a class="<?= trim(nav_on('/projects')) ?>" href="<?= e(url('projects')) ?>" title="Projects" aria-label="Projects"><?= icon('rocket') ?><span class="nav-text">Projects</span></a>
+      <a class="<?= trim(nav_on('/marketplace')) ?>" href="<?= e(url('marketplace')) ?>" title="Marketplace" aria-label="Marketplace"><?= icon('store') ?><span class="nav-text">Marketplace</span></a>
+      <a class="<?= trim(nav_on('/learn')) ?>" href="<?= e(url('learn')) ?>" title="Learning center" aria-label="Learning center"><?= icon('book') ?><span class="nav-text">Learning center</span></a>
+      <a class="<?= trim(nav_on('/mentors', '/mentorship')) ?>" href="<?= e(url('mentors')) ?>" title="Mentors" aria-label="Mentors<?= $pendingMentor ? ' — ' . $pendingMentor . ' pending' : '' ?>"><?= icon('compass') ?><span class="nav-text">Mentors</span><?php if ($pendingMentor): ?><span class="count"><?= $pendingMentor ?></span><?php endif ?></a>
+      <a class="<?= trim(nav_on('/people')) ?>" href="<?= e(url('people')) ?>" title="People" aria-label="People"><?= icon('users') ?><span class="nav-text">People</span></a>
       <div class="nav-label">You</div>
-      <a class="<?= trim(nav_on('/profile', '/me')) ?>" href="<?= e(url('me')) ?>"><?= icon('user') ?> My profile</a>
-      <a class="<?= trim(nav_on('/achievements')) ?>" href="<?= e(url('achievements')) ?>"><?= icon('trophy') ?> Achievements</a>
-      <a class="<?= trim(nav_on('/saved')) ?>" href="<?= e(url('saved')) ?>"><?= icon('bookmark') ?> Saved</a>
-      <a class="<?= trim(nav_on('/messages')) ?>" href="<?= e(url('messages')) ?>"><?= icon('message') ?> Messages <?php if ($msgN): ?><span class="count"><?= $msgN ?></span><?php endif ?></a>
-      <?php if ($me['role'] === 'admin'): ?><div class="nav-label">Administration</div><a href="<?= e(url('admin')) ?>"><?= icon('shield') ?> Admin dashboard</a><?php endif ?>
+      <a class="<?= trim(nav_on('/profile', '/me')) ?>" href="<?= e(url('me')) ?>" title="My profile" aria-label="My profile"><?= icon('user') ?><span class="nav-text">My profile</span></a>
+      <a class="<?= trim(nav_on('/achievements')) ?>" href="<?= e(url('achievements')) ?>" title="Achievements" aria-label="Achievements"><?= icon('trophy') ?><span class="nav-text">Achievements</span></a>
+      <a class="<?= trim(nav_on('/saved')) ?>" href="<?= e(url('saved')) ?>" title="Saved" aria-label="Saved"><?= icon('bookmark') ?><span class="nav-text">Saved</span></a>
+      <a class="<?= trim(nav_on('/messages')) ?>" href="<?= e(url('messages')) ?>" title="Messages" aria-label="Messages<?= $msgN ? ' — ' . $msgN . ' unread' : '' ?>"><?= icon('message') ?><span class="nav-text">Messages</span><?php if ($msgN): ?><span class="count"><?= $msgN ?></span><?php endif ?></a>
+      <a class="<?= trim(nav_on('/settings')) ?>" href="<?= e(url('settings')) ?>" title="Settings" aria-label="Settings"><?= icon('settings') ?><span class="nav-text">Settings</span></a>
+      <?php if ($me['role'] === 'admin'): ?><div class="nav-label">Administration</div><a href="<?= e(url('admin')) ?>" title="Admin dashboard" aria-label="Admin dashboard"><?= icon('shield') ?><span class="nav-text">Admin dashboard</span></a><?php endif ?>
     </nav>
     <a class="side-card side-rank-card rank-theme-<?= e(rank_key((int) $lvl['n'])) ?>" href="<?= e(url('achievements')) ?>" aria-label="View <?= e($lvl['name']) ?> rank progression">
       <span class="side-rank-effects" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -48,7 +50,7 @@ $title = $title ?? 'MANBAR';
       <span class="side-rank-next"><?= $lvl['next'] ? number_format(max(0, (int) $lvl['next_at'] - $rankScore)) . ' XP to ' . e($lvl['next']) : 'Highest rank achieved' ?></span>
     </a>
   </aside>
-  <button class="icon-btn sidebar-restore" id="sidebarRestore" type="button" aria-label="Show sidebar" title="Show sidebar"><?= icon('panel-left-open', 20) ?></button>
+  <button class="icon-btn sidebar-collapse" id="sidebarCollapse" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><span class="sidebar-collapse-hide"><?= icon('panel-left-close', 19) ?></span><span class="sidebar-collapse-show"><?= icon('panel-left-open', 19) ?></span></button>
   <div class="main">
     <header class="topbar">
       <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu"><?= icon('menu', 22) ?></button>
@@ -56,7 +58,24 @@ $title = $title ?? 'MANBAR';
       <a class="btn btn-primary btn-sm" data-tour="create" href="<?= e(url('feed?compose=idea')) ?>" style="margin-left:auto"><?= icon('plus', 16) ?> <span class="hide-s">New post</span></a>
       <button class="icon-btn theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" aria-pressed="false" title="Switch to dark mode"><span class="theme-icon theme-icon-moon"><?= icon('moon', 20) ?></span><span class="theme-icon theme-icon-sun"><?= icon('sun', 20) ?></span></button>
       <a class="icon-btn" href="<?= e(url('messages')) ?>" title="Messages"><?= icon('mail', 21) ?><?php if ($msgN): ?><span class="badge-n" data-count="messages"><?= $msgN ?></span><?php endif ?></a>
-      <a class="icon-btn" href="<?= e(url('notifications')) ?>" title="Notifications"><?= icon('bell', 21) ?><?php if ($notifN): ?><span class="badge-n" data-count="notifications"><?= $notifN ?></span><?php endif ?></a>
+      <div class="nb">
+        <a class="icon-btn nb-btn" id="notifBtn" href="<?= e(url('notifications')) ?>" title="Notifications" aria-haspopup="dialog" aria-expanded="false" aria-controls="notifPanel"><?= icon('bell', 21) ?><?php if ($notifN): ?><span class="badge-n" data-count="notifications"><?= $notifN ?></span><?php endif ?></a>
+        <dialog class="nb-panel" id="notifPanel" aria-labelledby="notifTitle">
+          <div class="nb-head">
+            <div class="nb-title"><span class="nb-head-ic"><?= icon('bell', 19) ?></span><div><h2 id="notifTitle">Notifications <span class="nb-new" data-nb-unread hidden></span></h2><p>Your most recent activity on MANBAR</p></div></div>
+            <div class="nb-head-acts">
+              <button class="nb-readall" type="button" data-nb-readall><?= icon('check', 14) ?> Mark all read</button>
+              <button class="nb-x" type="button" data-nb-close aria-label="Close"><?= icon('x', 19) ?></button>
+            </div>
+          </div>
+          <div class="nb-tabs" role="tablist"><button type="button" class="on" data-nb-filter="all">All</button><button type="button" data-nb-filter="unread">New</button></div>
+          <div class="nb-body" data-nb-body><div class="nb-loading"><i></i><i></i><i></i></div></div>
+          <div class="nb-foot">
+            <a class="nb-all" href="<?= e(url('notifications')) ?>">View all notifications <?= icon('arrow-right', 15) ?></a>
+            <a class="nb-gear" href="<?= e(url('settings?tab=notifications')) ?>" title="Notification settings" aria-label="Notification settings"><?= icon('settings', 17) ?></a>
+          </div>
+        </dialog>
+      </div>
       <div class="user-menu">
         <button class="icon-btn" id="userBtn" style="width:auto;padding:0 4px" aria-label="Account"><?= avatar($me, 36) ?></button>
         <div class="dropdown" id="userDrop">
@@ -65,6 +84,8 @@ $title = $title ?? 'MANBAR';
           <a href="<?= e(url('me')) ?>"><?= icon('user', 18) ?> View profile</a>
           <a href="<?= e(url('profile/edit')) ?>"><?= icon('settings', 18) ?> Edit profile</a>
           <a href="<?= e(url('marketplace/orders')) ?>"><?= icon('briefcase', 18) ?> My orders</a>
+          <a href="<?= e(url('settings?tab=billing')) ?>"><?= icon('wallet', 18) ?> Billing &amp; wallet</a>
+          <a href="<?= e(url('settings')) ?>"><?= icon('settings', 18) ?> Settings</a>
           <a href="<?= e(url('mentorship')) ?>"><?= icon('compass', 18) ?> My mentorship</a>
           <?php if ($me['role'] === 'admin'): ?><a href="<?= e(url('admin')) ?>"><?= icon('shield', 18) ?> Admin dashboard</a><?php endif ?>
           <hr class="divider" style="margin:6px 0">
@@ -85,5 +106,6 @@ $title = $title ?? 'MANBAR';
 <?php partial('guide', ['showTour' => $showTour ?? false]) ?>
 <?php partial('toasts') ?>
 <script src="<?= e(asset('js/app.js')) ?>" defer></script>
+<script src="<?= e(asset('js/notify.js')) ?>" defer></script>
 </body>
 </html>

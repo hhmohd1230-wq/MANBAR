@@ -84,7 +84,17 @@ function page_feed(): void
     $compose = input('compose');
     $isHome = !$compose && $page === 1 && !$type && !$tag && !$q && $sort === 'new';
     $showTour = $isHome && (int) ($u['product_tour_completed'] ?? 1) === 0;
-    render('feed', ['u' => $u, 'posts' => $posts, 'more' => $more, 'page' => $page, 'type' => $type, 'tag' => $tag, 'q' => $q, 'sort' => $sort, 'compose' => $compose, 'w' => sidebar_widgets(), 'isHome' => $isHome, 'showTour' => $showTour]);
+    // the feed board: what the community did this week, and the hashtags people use most
+    $week = date("Y-m-d H:i:s", time() - 30 * 86400);   // a month: a campus community is small
+    $fstats = qrow("SELECT (SELECT COUNT(*) FROM posts WHERE created_at >= ?) AS posts, (SELECT COUNT(DISTINCT user_id) FROM posts WHERE created_at >= ?) AS posters,
+        (SELECT COUNT(*) FROM comments WHERE created_at >= ?) AS comments, (SELECT COUNT(*) FROM posts) AS total", [$week, $week, $week]);
+    $tagCount = [];
+    foreach (qall("SELECT tags FROM posts WHERE tags IS NOT NULL AND tags <> '' ORDER BY id DESC LIMIT 200") as $r) foreach (csv_list($r['tags']) as $tg) { $tg = mb_strtolower(ltrim($tg, '#')); if ($tg !== '') $tagCount[$tg] = ($tagCount[$tg] ?? 0) + 1; }
+    arsort($tagCount);
+    $trending = array_slice(array_keys($tagCount), 0, 6);
+    // the progress card in the welcome banner
+    $prog = ['badges' => (int) qval('SELECT COUNT(*) FROM user_badges WHERE user_id = ?', [$u['id']]), 'posts' => (int) qval('SELECT COUNT(*) FROM posts WHERE user_id = ?', [$u['id']])];
+    render('feed', ['u' => $u, 'posts' => $posts, 'more' => $more, 'page' => $page, 'type' => $type, 'tag' => $tag, 'q' => $q, 'sort' => $sort, 'compose' => $compose, 'w' => sidebar_widgets(), 'isHome' => $isHome, 'showTour' => $showTour, 'fstats' => $fstats, 'trending' => $trending, 'prog' => $prog]);
 }
 
 function api_tour_complete(): void
@@ -304,6 +314,9 @@ function api_report(): void
     $type = input('type');
     if (!in_array($type, ['post', 'comment', 'service', 'project'], true)) json_out(['ok' => false], 422);
     $reason = mb_substr(input('reason', 'Inappropriate content'), 0, 250);
-    insert('reports', ['reporter_id' => $u['id'], 'target_type' => $type, 'target_id' => input_int('id'), 'reason' => $reason]);
+    $row = ['reporter_id' => $u['id'], 'target_type' => $type, 'target_id' => input_int('id'), 'reason' => $reason];
+    ensure_admin_schema();
+    if (stripos($reason, 'scam') !== false) $row['category'] = 'scam';
+    insert('reports', $row);
     json_out(['ok' => true, 'message' => 'Thanks — our moderators will review this.']);
 }

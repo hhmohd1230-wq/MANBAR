@@ -13,6 +13,8 @@ function admin_series(string $table, int $days = 14): array
 function page_admin(): void
 {
     $u = require_admin();
+    ensure_admin_schema();
+    if (function_exists('ensure_pay_schema')) ensure_pay_schema();
     $c = fn(string $sql) => (int) qval($sql);
     $stats = [
         'users' => $c('SELECT COUNT(*) FROM users'),
@@ -29,19 +31,28 @@ function page_admin(): void
         'reports' => $c("SELECT COUNT(*) FROM reports WHERE status = 'open'"),
         'new_week' => $c("SELECT COUNT(*) FROM users WHERE created_at >= '" . date('Y-m-d', strtotime('-7 days')) . "'"),
         'suspended' => $c("SELECT COUNT(*) FROM users WHERE status = 'suspended'"),
+        'scam' => $c("SELECT COUNT(*) FROM reports WHERE status = 'open' AND category = 'scam'"),
+        'held' => $c("SELECT COALESCE(SUM(amount), 0) FROM market_payments WHERE status = 'held'"),
+        'orders_open' => $c("SELECT COUNT(*) FROM service_requests WHERE status IN ('accepted','delivered')"),
+        'online' => $c("SELECT COUNT(*) FROM users WHERE last_login >= '" . date('Y-m-d H:i:s', time() - 86400) . "'"),
     ];
+    $stats['content_reports'] = $stats['reports'] - $stats['scam'];
+    $actions = qall('SELECT m.*, a.full_name AS admin, t.full_name AS target FROM mod_actions m LEFT JOIN users a ON a.id = m.admin_id JOIN users t ON t.id = m.user_id ORDER BY m.id DESC LIMIT 6');
     $series = ['users' => admin_series('users'), 'posts' => admin_series('posts'), 'comments' => admin_series('comments')];
     $byType = array_column(qall('SELECT type, COUNT(*) AS n FROM posts GROUP BY type ORDER BY n DESC'), 'n', 'type');
     $byFaculty = qall("SELECT COALESCE(NULLIF(faculty, ''), 'Not set') AS f, COUNT(*) AS n FROM users GROUP BY COALESCE(NULLIF(faculty, ''), 'Not set') ORDER BY n DESC LIMIT 6");
     $recentUsers = qall('SELECT id, full_name, email, role, verified, created_at, avatar_url FROM users ORDER BY id DESC LIMIT 6');
     $openReports = qall("SELECT r.*, u.full_name AS reporter FROM reports r JOIN users u ON u.id = r.reporter_id WHERE r.status = 'open' ORDER BY r.id DESC LIMIT 5");
     $top = qall("SELECT id, full_name, email, avatar_url, points FROM users WHERE status = 'active' ORDER BY points DESC LIMIT 5");
-    render('admin/dashboard', compact('u', 'stats', 'series', 'byType', 'byFaculty', 'recentUsers', 'openReports', 'top'), 'admin/layout');
+    $openReports = qall("SELECT r.*, u.full_name AS reporter, t.full_name AS accused FROM reports r JOIN users u ON u.id = r.reporter_id LEFT JOIN users t ON r.target_type = 'user' AND t.id = r.target_id WHERE r.status = 'open' ORDER BY r.category = 'scam' DESC, r.id DESC LIMIT 6");
+    $top = qall("SELECT id, full_name, email, avatar_url, points, reputation_score FROM users WHERE status = 'active' ORDER BY reputation_score DESC LIMIT 5");
+    render('admin/dashboard', compact('u', 'stats', 'series', 'byType', 'byFaculty', 'recentUsers', 'openReports', 'top', 'actions'), 'admin/layout');
 }
 
 function page_admin_users(): void
 {
     $u = require_admin();
+    ensure_admin_schema();
     $q = input('q'); $role = input('role'); $st = input('status');
     $where = ['1=1']; $params = [];
     if ($q !== '') { $where[] = '(full_name LIKE ? OR email LIKE ? OR student_id LIKE ?)'; array_push($params, "%$q%", "%$q%", "%$q%"); }
@@ -69,7 +80,7 @@ function admin_user_action(int $id): void
     if ($id === (int) $a['id'] && in_array($act, ['suspend', 'delete', 'role'], true)) { flash('You cannot do that to your own account.', 'error'); redirect('admin/users'); }
     switch ($act) {
         case 'suspend': update('users', ['status' => 'suspended'], 'id = ?', [$id]); audit('suspend_user', $t['email']); flash('User suspended.'); break;
-        case 'activate': update('users', ['status' => 'active'], 'id = ?', [$id]); audit('activate_user', $t['email']); flash('User re-activated.'); break;
+        case 'activate': update('users', ['status' => 'active', 'ban_reason' => null, 'banned_until' => null, 'banned_by' => null], 'id = ?', [$id]); mod_log($id, 'unban'); flash('User re-activated.'); break;
         case 'verify': update('users', ['verified' => $t['verified'] ? 0 : 1], 'id = ?', [$id]); audit('toggle_verify', $t['email']); flash('Verification updated.'); break;
         case 'role':
             $r = input('role');
@@ -77,9 +88,10 @@ function admin_user_action(int $id): void
             update('users', ['role' => $r], 'id = ?', [$id]);
             if ($r !== 'student' && !qval('SELECT COUNT(*) FROM mentor_profiles WHERE user_id = ?', [$id])) insert('mentor_profiles', ['user_id' => $id, 'expertise' => 'Add your expertise', 'active' => 0]);
             audit('set_role', $t['email'] . ' → ' . $r); flash('Role changed to ' . $r . '.'); break;
-        case 'delete': qexec('DELETE FROM users WHERE id = ?', [$id]); audit('delete_user', $t['email']); flash('User deleted.'); break;
+        case 'delete': qexec('DELETE FROM users WHERE id = ?', [$id]); audit('delete_user', $t['email']); flash('User deleted.'); redirect('admin/users');
     }
-    redirect('admin/users');
+    // came from the user's control panel → go back there
+    redirect(preg_match('#/admin/users/' . $id . '$#', parse_url($_SERVER['HTTP_REFERER'] ?? '', PHP_URL_PATH) ?: '') ? 'admin/users/' . $id : 'admin/users');
 }
 
 function page_admin_roster(): void
@@ -144,7 +156,16 @@ function admin_roster_delete(int $id): void
 function page_admin_moderation(): void
 {
     $u = require_admin();
-    $reports = qall("SELECT r.*, u.full_name AS reporter FROM reports r JOIN users u ON u.id = r.reporter_id ORDER BY (r.status = 'open') DESC, r.id DESC LIMIT 80");
+    ensure_admin_schema();
+    $counts = ['scam' => (int) qval("SELECT COUNT(*) FROM reports WHERE status = 'open' AND category = 'scam'"), 'content' => (int) qval("SELECT COUNT(*) FROM reports WHERE status = 'open' AND category <> 'scam'"), 'posts' => (int) qval('SELECT COUNT(*) FROM posts')];
+    $tab = in_array($_GET['tab'] ?? '', ['scam', 'content', 'posts'], true) ? $_GET['tab'] : ($counts['scam'] ? 'scam' : 'content');
+    $cases = qall("SELECT r.*, a.full_name AS reporter, a.avatar_url AS reporter_avatar, a.email AS reporter_email, t.full_name AS accused, t.avatar_url AS accused_avatar, t.email AS accused_email, t.status AS accused_status
+        FROM reports r JOIN users a ON a.id = r.reporter_id JOIN users t ON t.id = r.target_id WHERE r.category = 'scam' AND r.target_type = 'user' ORDER BY (r.status = 'open') DESC, r.id DESC LIMIT 60");
+    $pq = input('q'); $ptype = input('type');
+    $pw = ['1=1']; $pp = [];
+    if ($pq !== '') { $pw[] = '(p.title LIKE ? OR p.body LIKE ? OR u.full_name LIKE ?)'; array_push($pp, "%$pq%", "%$pq%", "%$pq%"); }
+    if ($ptype !== '') { $pw[] = 'p.type = ?'; $pp[] = $ptype; }
+    $reports = qall("SELECT r.*, u.full_name AS reporter FROM reports r JOIN users u ON u.id = r.reporter_id WHERE r.category <> 'scam' ORDER BY (r.status = 'open') DESC, r.id DESC LIMIT 80");
     foreach ($reports as &$r) {
         $r['preview'] = null;
         if ($r['target_type'] === 'post') $r['preview'] = qrow('SELECT p.id, p.title AS text, p.status, u.full_name AS author FROM posts p JOIN users u ON u.id = p.user_id WHERE p.id = ?', [$r['target_id']]);
@@ -152,8 +173,8 @@ function page_admin_moderation(): void
         if ($r['target_type'] === 'service') $r['preview'] = qrow('SELECT s.id, s.title AS text, s.status, u.full_name AS author FROM services s JOIN users u ON u.id = s.user_id WHERE s.id = ?', [$r['target_id']]);
         if ($r['target_type'] === 'project') $r['preview'] = qrow("SELECT p.id, p.title AS text, CASE WHEN p.hidden = 1 THEN 'hidden' ELSE 'visible' END AS status, u.full_name AS author FROM projects p JOIN users u ON u.id = p.owner_id WHERE p.id = ?", [$r['target_id']]);
     }
-    $recent = qall("SELECT p.id, p.title, p.type, p.status, p.pinned, p.created_at, u.full_name FROM posts p JOIN users u ON u.id = p.user_id ORDER BY p.id DESC LIMIT 15");
-    render('admin/moderation', compact('u', 'reports', 'recent'), 'admin/layout');
+    $recent = qall("SELECT p.id, p.title, p.type, p.status, p.pinned, p.created_at, p.user_id, u.full_name, u.avatar_url, u.email, (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comments, (SELECT COUNT(*) FROM reactions x WHERE x.target_type = 'post' AND x.target_id = p.id) AS reactions FROM posts p JOIN users u ON u.id = p.user_id WHERE " . implode(' AND ', $pw) . ' ORDER BY p.id DESC LIMIT 60', $pp);
+    render('admin/moderation', compact('u', 'reports', 'recent', 'tab', 'cases', 'counts', 'pq', 'ptype'), 'admin/layout');
 }
 
 function admin_moderate(): void
@@ -161,12 +182,21 @@ function admin_moderate(): void
     require_admin();
     $type = input('type'); $id = input_int('id'); $act = input('action');
     $table = ['post' => 'posts', 'comment' => 'comments', 'service' => 'services', 'project' => 'projects'][$type] ?? abort(422);
+    $why = mb_substr(trim(input('reason')), 0, 300);
+    if ($why !== '' && in_array($act, ['hide', 'delete'], true)) {   // tell the author why their content was removed
+        $own = qrow("SELECT * FROM $table WHERE id = ?", [$id]);
+        $ownerId = (int) ($own[$type === 'project' ? 'owner_id' : 'user_id'] ?? 0);
+        if ($ownerId) {
+            notify($ownerId, 'system', 'Your ' . $type . ($type !== 'comment' ? ' “' . excerpt($own['title'] ?? '', 60) . '”' : '') . ' was ' . ($act === 'delete' ? 'removed' : 'hidden') . ' by the moderators: ' . $why, 'feed');
+            mod_log($ownerId, $type . '_' . $act, $why);
+        }
+    }
     if ($act === 'hide') { $type === 'project' ? update($table, ['hidden' => 1], 'id = ?', [$id]) : update($table, ['status' => 'hidden'], 'id = ?', [$id]); audit('hide_' . $type, "#$id"); }
     elseif ($act === 'restore') { $type === 'project' ? update($table, ['hidden' => 0], 'id = ?', [$id]) : update($table, ['status' => $type === 'service' ? 'active' : 'visible'], 'id = ?', [$id]); audit('restore_' . $type, "#$id"); }
     elseif ($act === 'delete') { qexec("DELETE FROM $table WHERE id = ?", [$id]); audit('delete_' . $type, "#$id"); }
     if (in_array($act, ['hide', 'delete', 'dismiss', 'resolve'], true) && input_int('report_id')) update('reports', ['status' => $act === 'dismiss' ? 'dismissed' : 'resolved'], 'id = ?', [input_int('report_id')]);
-    flash('Done.');
-    redirect('admin/moderation');
+    flash(['hide' => 'Hidden.', 'restore' => 'Restored.', 'delete' => 'Deleted permanently.', 'dismiss' => 'Report dismissed.'][$act] ?? 'Done.');
+    redirect('admin/moderation' . (input('tab') !== '' ? '?tab=' . urlencode(input('tab')) : ''));
 }
 
 function page_admin_content(): void

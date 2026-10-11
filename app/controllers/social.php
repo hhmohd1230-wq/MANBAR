@@ -3,9 +3,14 @@
 function page_notifications(): void
 {
     $u = require_login();
-    $items = qall('SELECT * FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 60', [$u['id']]);
-    qexec('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [$u['id']]);
-    render('notifications', compact('u', 'items'));
+    $all = qall('SELECT * FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 150', [$u['id']]);
+    $f = $_GET['f'] ?? 'all';
+    $counts = ['all' => count($all), 'unread' => 0];
+    foreach ($all as $n) { $g = notif_meta($n['type'])['group']; $counts[$g] = ($counts[$g] ?? 0) + 1; if (!$n['is_read']) $counts['unread']++; }
+    if (!isset($counts[$f]) && !isset(NOTIF_GROUPS[$f])) $f = 'all';
+    $items = array_values(array_filter($all, fn($n) => $f === 'all' || ($f === 'unread' ? !$n['is_read'] : notif_meta($n['type'])['group'] === $f)));
+    qexec('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [$u['id']]);   // shown highlighted this once, read from now on
+    render('notifications', compact('u', 'items', 'f', 'counts'));
 }
 function api_counts(): void
 {
